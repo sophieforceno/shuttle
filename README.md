@@ -22,7 +22,8 @@ Note: Since authentication with Pushbullet is via OAuth, pushes from SHuttle wil
 
 # Usage:
 ```
-Commands take the following form: shuttle <action> <type> <recipient> <data> where:
+Commands take the following form: 
+shuttle <action> <type> <recipient> <data> where:
 
 <actions> 		<types>						
 * push 			file, link, note, sms, weather			
@@ -37,32 +38,32 @@ Commands take the following form: shuttle <action> <type> <recipient> <data> whe
 
 Command-line arguments:
 <action>:
-chats | -c		Add, delete, or update chats
-devices | -d        	Add, delete, or update devices
-help | usage		Show the long usage text
-list | -l 		List channels, chats, devices, pushes, or user info
-push | -p		Send push to <device> or <chats>
-setup 			Setup OAuth for SHuttle 
+chats | -c		    Add, delete, or update chats
+devices | -d        Add, delete, or update devices
+help | usage	    Show the long usage text
+list | -l 		    List channels, chats, devices, pushes, or user info
+push | -p		    Send push to <device> or <chats>
+setup 		    	Setup OAuth for SHuttle 
 
 <type>:
 For "push" <action>
-file | -f		Push a file to <device> or <chats>
-link | -l		Push a link to <device> or <chats>
-note | -n		Push a note to <device> or <chats>
-sms  | -s		Send an SMS to <phone number>
-weather | -w		Send weather forecast to <device> or <chats>
+file | -f		    Push a file to <device> or <chats>
+link | -l		    Push a link to <device> or <chats>
+note | -n		    Push a note to <device> or <chats>
+sms  | -s	        Send an SMS to <phone number>
+weather | -w	    Send weather forecast to <device> or <chats>
 
 For "chats" or "devices" <action>:
-add | -a		Add <chat> email address or <device> name
-delete | del		Delete <chat> email address or <device> name
-update | -u		Update <chat> email address or <device> name
+add | -a		    Add <chat> email address or <device> name
+delete | del	    Delete <chat> email address or <device> name
+update | -u		    Update <chat> email address or <device> name
 
 For "list" <action>:
-channels		List channel subscriptions
-chats | -c		List available chats recipients
-devices | dev | -d	List available devices 	 
-pushes			List pushes from the last t intervals (h hours, d days - default is 24h)
-user 			List user info
+channels		        List channel subscriptions
+chats | -c		        List available chats recipients
+devices | dev | -d      List available devices 	 
+pushes			        List pushes from the last t intervals (h hours, d days - default is 24h)
+user 		        	List user info
 
 
 Notes & Examples (not exhaustive):
