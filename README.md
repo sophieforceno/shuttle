@@ -1,4 +1,6 @@
-README
+README.md
+
+SHuttle v0.9.7 (build 062016) - First public release!
 
 Introduction:
 Shuttle is a Pushbullet client written in Bash shell script. It allows the sending of pushes from the Linux CLI within scripts. SHuttle itself cannot receive pushes, in that regard, it is not a full client. I wrote SHuttle primarily as a means to receive real-time notifications for system administration purposes. You can find many of the scripts I wrote for sys admin use in the shuttle-utils repository: https://github.com/andyforceno/shuttle-utils
