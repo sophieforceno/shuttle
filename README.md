@@ -35,6 +35,7 @@ Commands take the following form: shuttle <action> <type> <recipient> <data> whe
 * Except for "usage" and "setup", all <actions> require additional parameters. 
 
 
+Command-line arguments:
 <action>:
 chats | -c		Add, delete, or update chats
 devices | -d        	Add, delete, or update devices
