@@ -5,7 +5,7 @@ SHuttle v0.9.7 (build 062016) - First public release!
 
 Introduction:
 
-Shuttle is a Pushbullet client written in Bash shell script. It allows the sending of pushes from the Linux CLI within scripts. SHuttle itself cannot receive pushes, in that regard, it is not a full client. I wrote SHuttle primarily as a means to receive real-time notifications for system administration purposes. You can find many of the scripts I wrote for sys admin use in the shuttle-utils repository: https://github.com/andyforceno/shuttle-utils
+Shuttle is a Pushbullet client written in Bash shell script. It allows the sending of pushes from the Linux CLI and from within Bash scripts. SHuttle itself cannot receive pushes, in that regard, it is not a full client. I wrote SHuttle primarily as a means to receive real-time notifications for system administration purposes. You can find many of the scripts I wrote for sys admin use in the shuttle-utils repository: https://github.com/andyforceno/shuttle-utils
 
 SHuttle has been tested on Ubuntu Linux 14.04 running Bash 4.3.11(1), and Debian 8 running Bash 4.3.30(1). SHuttle contains numerous Bash-isms making it unsuitable for other shells. SHuttle has few dependencies, most of which are included by default in most distros. Curl is likely the only program you will have to install.
 
@@ -117,6 +117,7 @@ Accepts hours or days (default is 24h)
 
 
 License:
+
 This program is distributed under the MIT license:
 The MIT License (MIT)
 Copyright (c) 2016 Andy Forceno <andy@aurorabox.tech>
