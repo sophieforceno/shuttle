@@ -31,13 +31,13 @@ Commands take the following form: shuttle <action> <type> <recipient> <data> whe
 * setup 		Oauth and setup
 * Except for "usage" and "setup", all <actions> require additional parameters. 
 
-    <action>:
-    chats | -c		Add, delete, or update chats
-    devices | -d        	Add, delete, or update devices
-    help | usage		Show the long usage text
-    list | -l 		List channels, chats, devices, pushes, or user info
-    push | -p		Send push to <device> or <chats>
-    setup 			Setup OAuth for SHuttle 
+> <action>:
+> chats | -c		Add, delete, or update chats
+> devices | -d        	Add, delete, or update devices
+> help | usage		Show the long usage text
+> list | -l 		List channels, chats, devices, pushes, or user info
+> push | -p		Send push to <device> or <chats>
+> setup 			Setup OAuth for SHuttle 
 
 <type>:
 For "push" <action>
