@@ -59,6 +59,7 @@ devices | dev | -d	List available devices
 pushes			List pushes from the last t intervals (h hours, d days - default is 24h)
 user 			List user info
 
+
 Notes & Examples (not exhaustive):
 To push notes or files:   <action> <type> <recipient> <title> <body> (<file name>)
 To push links: 	          <action> <type> <recipient> <title> <URL>
@@ -105,7 +106,8 @@ shuttle chats del "moogie@"
 
 List pushes (from last 7 days):
 shuttle -l -p 7d
-Accepts hours or days (default is 24h)```
+Accepts hours or days (default is 24h)
+```
 
 
 License:
