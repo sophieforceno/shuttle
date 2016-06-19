@@ -21,6 +21,7 @@ Note: Since authentication with Pushbullet is via OAuth, pushes from SHuttle wil
 
 
 # Usage:
+```
 Commands take the following form: shuttle <action> <type> <recipient> <data> where:
 
 <actions> 		<types>						
@@ -33,7 +34,8 @@ Commands take the following form: shuttle <action> <type> <recipient> <data> whe
 * setup 		Oauth and setup
 * Except for "usage" and "setup", all <actions> require additional parameters. 
 
-```<action>:
+
+<action>:
 chats | -c		Add, delete, or update chats
 devices | -d        	Add, delete, or update devices
 help | usage		Show the long usage text
