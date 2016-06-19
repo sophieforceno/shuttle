@@ -1,0 +1,714 @@
+#! /bin/bash
+
+#
+# SHuttle v0.9.7-(061916) 
+# A Pushbullet CLI for the Bash shell
+# by Andy Forceno <andy@aurorabox.tech>
+#
+
+# SHuttle is distributed under the MIT License
+# See full license text at the bottom of this file
+# Or visit: https://opensource.org/licenses/MIT
+
+# TODO: When getting device and chats lists, only get active devices and chats
+# 		This will fix the issue with blank lines printing in shuttle -l -c and -l -d output
+#
+
+### Known issues:
+# Bash interprets money amounts in USD as positional parameters ("$20" is pushed as "0")
+# Empty cells of push list get filled in with next available cell. Cause is unknown.
+# Unknown if SMS pushing still works (untested recently; now requires Android 4.4+)
+# Chat list pagination is untested, device list pagination is not implemented 
+
+### Changelog:
+# v0.9.7 - Added finishing touches to setup flow
+#		 - Pagination for long chats (buggy and currently commented out)
+#		 - Miscellaneous fixes
+# v0.9.6 - Fixed file pushing (invalid file_url)
+#		 - Parse webpage titles even when user omits "http://" (if site supports it)
+#		 - Rewrote API calls (for pushes) in JSON formatting 
+#		 - Added warning when user sends empty pushes 
+#		 - Added confirmation when deleting chats
+# v0.9.5 - Switched from XML to JSON for Weather Underground's API output 
+#		 - Modified OAuth setup flow to require less user intervention 
+#		 - Commented out pushing to clipboard functionality (premium feature only now) 
+#		 - Removed -d flag for delete, added -l -d (list pushes) and -l -c (list chats)	
+# v0.9.4 - Implemented error-checking and display of error messages from API calls
+#		 - upload_request and file uploading calls adapted to API update (file pushing is now broken, woo!)
+# v0.9.3 - Fully implemented OAuth! Yay!
+#		 - Rewrote setup(), to make SHuttle setup more straight-forward
+# v0.9.2 - Chat names have been removed (deprecated in API)
+#		 - Added saner command line arguments (new action: list, with types: chats, devices, and pushes)
+# v0.9.1 - Switch from Contacts object to Chats object (API update)
+#		    
+
+shopt -s extglob
+shopt -s nocasematch
+
+# Version and build (mdy format)
+ver="v0.9.7-(061916)"
+
+args=("$@")
+action="$1"
+type="$2"
+recip="$3"
+title="$4"
+body="$5"
+file="$6"
+
+api_url="https://api.pushbullet.com/v2"
+client_id="bNPNXDYqWvRSEAH6iFlFUU3z8f7dVuoT"
+secret="kMb7x8HdRVdFcWOINJizuiSvXblZrL6V"
+term_width=$(tput cols)
+
+### List available <device>
+# See: https://docs.pushbullet.com/#devices
+get_device_list () {
+	get_devices=$(curl -s -H "Access-Token: $access_token" $api_url/devices -X GET)
+	device_list=$(echo $get_devices | tr ',' '\n' | grep -w nickname | cut -d '"' -f4)
+	dev_idens=$(echo $get_devices | tr '{' '\n' | grep active\"\:true | tr ',' '\n' | grep iden | cut -d'"' -f4)
+# For auto-completion of device names
+# Gets full device name from partial input
+	dev_check=$(echo -e "$device_list" | grep -iF "$recip") 
+
+# Check if API returns an error
+# Currently supports only "invalid_request" errors (the most common type) 
+	error_type=$(echo "$get_devices" | awk -F: '{ print $4 }' | cut -f1 -d',' | tr -d '"')
+	error_msg=$(echo "$get_devices" | awk -F: '{ print $5 }' | cut -f1 -d',' | tr -d '"' | tr -d "'")
+	if [[ "$error_type" = "invalid_request" ]]; then
+		echo "SHuttle: Error: Server returned with "$error_type": "$error_msg""
+		exit 0
+	fi	
+
+# If type = SMS then get the $dev_iden of $sms_device (via .shuttlerc)
+# otherwise, get $dev_iden of $recip specified on command-line
+	if [[ "$type" = "sms" ]]; then
+		line_num=$(echo "$device_list" | grep -in "$sms_device" | cut -d: -f1)
+	else
+		line_num=$(echo "$device_list" | grep -in "$recip" | cut -d: -f1)
+	fi
+# Gets the right $dev_id from the list of all idens, $dev_idens, via $line_num
+	dev_id=$(echo "$dev_idens" | sed -n $line_num'p' 2> /dev/null)   
+  
+# If $recip matches more than one <device> name, warn user
+	if [[ "$action" = +(-p|push) ]] && ( [[ $(echo "$line_num" | wc -l) > 1 ]] || [[ $(echo "$dev_check" | wc -l) > 1 ]] ); then
+		echo -e "\nMore than one <device> found:"
+		echo -e "$dev_check"
+		echo -e "\nPlease specify a unique partial or full match"
+		exit 1
+	fi
+}
+
+### List available <chats>
+# See: https://docs.pushbullet.com/#list-chats
+get_chats_list () {	
+	get_chats=$(curl -s -H "Access-Token: $access_token" $api_url/chats -X GET)
+	chat_emails=$(echo $get_chats | tr ',' '\n' | grep -w email_normalized | cut -d '"' -f4)
+	contact_idens=$(echo $get_chats | tr '{' '\n' | grep active\"\:true | tr ',' '\n' | grep iden | cut -d'"' -f4)
+	line_num=$(echo "$chat_emails" | grep -in "$recip" | cut -d: -f1)
+# Get contact_id from partial input of email address
+	contact_id=$(echo "$contact_idens" | sed -n $line_num'p' 2> /dev/null)  
+# For auto-completion of recipient names
+# Gets full email address from partial input
+	email_check=$(echo "$chat_emails" | grep -iF "$recip") 	
+
+ # Check if API returns an error
+	error_type=$(echo "$get_chats" | awk -F: '{ print $4 }' | cut -f1 -d',' | tr -d '"')
+	error_msg=$(echo "$get_chats" | awk -F: '{ print $5 }' | cut -f1 -d',' | tr -d '"' | tr -d "'")
+	if [[ "$error_type" = "invalid_request" ]]; then
+		echo "SHuttle: Error: Server returned with "$error_type": "$error_msg""
+		exit 0
+	fi
+# Don't check <contact> if listing or adding contacts
+	if [[ "$type" != +(add|-a|chats|-c) ]]; then
+		# If specified <chat> doesn't exist 
+			if [[ -z "$line_num" ]]; then
+				echo -e "\nChat e-mail address not found. \nExecute "\"shuttle list chats"\" to see a list of available recipients."
+				exit 1
+			fi
+		# Check that <chat> e-mail address is a unique target
+			if [[ $(echo "$email_check" | wc -l) > 1 ]]; then
+					echo -e "\nMore than one chat found:"
+					paste <(printf "%s\n" "$email_check")
+					echo -e "\nPlease specify a unique partial or full match"
+					exit 1
+			fi
+	fi
+
+# Get chats info for pagination output
+	chats_name=$(echo $get_chats | tr ',' '\n '| grep -w "name" | sed -e 's/["}]//g' | cut -f2 -d':')
+	chats_type=$(echo $get_chats | tr ',' '\n '| grep -w "type" | sed -e 's/["}]//g' | cut -f3 -d':')
+	chats_image=$(echo $get_chats | tr ',' '\n '| grep -w "image_url" | sed -e 's/^.*http/http/g' -e 's/"}}]//g')
+	get_cursor=$(echo $get_chats | grep -iPo '(?=cursor).*' | cut -f2 -d':' | tr -d '"}')
+# Output formatting variables for pushes list
+	col_width=$(($term_width/5))
+# Assemble the push data into rows and columns
+# Crop the output to fit the terminal width
+	list_header=$(paste <(printf "%s\n" "Name:") <(printf "%s\n" "Email:") <(printf "%s\n" "Type:") <(printf "%s\n" "Avatar URL:") | pr -t -e$col_width)
+	list_seperator=$(echo -e "---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------" | cut -c1-$term_width)
+	list_body=$(paste <(printf "%s\n" "$chats_name" | awk -v width="$(($col_width-4))" 'length > width{$0=substr($0,0,width)"..."}1') <(printf "%s\n" "$chat_emails" | awk -v width="$(($col_width-4))" 'length > width{$0=substr($0,0,width)"..."}1') <(printf "%s\n" "$chats_type") <(printf "%s\n" "$chats_image") | pr -t -e$col_width)
+}
+
+### Get basic user info
+# See: https://docs.pushbullet.com/#get-user
+get_user_info () {
+	get_user=$(curl -s -H "Access-Token: $access_token" $api_url/users/me -X GET)
+	user_iden=$(echo $get_user | awk -F: '/iden/ {print $3}' | cut -f1 -d',' | tr -d '"')
+	user_name=$(echo $get_user | awk -F: '/name/ {print $8}' | cut -f1 -d',' | tr -d '"')
+	user_email=$(echo $get_user | awk -F: '/name/ {print $7}' | cut -f1 -d',' | tr -d '"')
+	avatar_url=$(echo $get_user | awk -F, '/image_url/ {print $8}' | cut -f4 -d'"')
+}
+
+### Get pushes since <time> t
+# See: https://docs.pushbullet.com/#list-pushes
+get_push_list () {
+# Get user input and split into number and interval (h or d)
+	interval=$(echo "$time" | tail -c 2)
+	hour=$(echo "$time" | sed 's/[^0-9]//g')
+# Convert input time in days to time in hours
+	if [[ $interval =~ d ]];
+		then
+			hour=$(($hour * 24))
+	fi
+	uts_hour=$(($hour * 60 * 60))
+	uts_now=$(date +%s)
+	mod_time=$(($uts_now - $uts_hour))
+# TODO: When there are missing cells in the output, they get filled in. 
+# Causing everything to become misaligned. I blame paste.
+	get_pushes=$(curl -s -H "Access-Token: $access_token" $api_url/pushes?modified_after=$mod_time -X GET)
+	push_title=$(echo $get_pushes | tr ',' '\n '| grep -w "title" | cut -f2 -d',' | sed -e 's/["}]//g' -e 's/title://g')
+	push_body=$(echo $get_pushes | tr ',' '\n '| grep -w "body" | cut -f2 -d',' | sed -e 's/["}]//g' -e 's/body://g')
+	sender_name=$(echo $get_pushes | tr ',' '\n '| grep -w "sender_name" | cut -f2 -d':' | tr -d '"')
+	sender_email=$(echo $get_pushes | tr ',' '\n '| grep -w "sender_email" | cut -f2 -d':' | tr -d '"')
+	pushtypes=$(echo $get_pushes | tr ',' '\n '| grep -w "type" | cut -f2 -d':' | tr -d '"')
+	cursor=$(echo $get_pushes | grep -iPo '(?=cursor).*' | cut -f2 -d':' | tr -d '"}')
+# Output formatting variables for pushes list
+	col_width=$(($term_width/5))
+# Assemble the push data into rows and columns
+# Crop the output to fit the terminal width
+	list_header=$(paste <(printf "%s\n" "Title:") <(printf "%s\n" "Body:") <(printf "%s\n" "Sender Name:") <(printf "%s\n" "Sender Email:") <(printf "%s\n" "Type:") | pr -t -e$col_width)
+	list_seperator=$(echo -e "---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------" | cut -c1-$term_width)
+	list_body=$(paste <(printf "%s\n" "$push_title" | awk -v width="$(($col_width-4))" 'length > width{$0=substr($0,0,width)"..."}1') <(printf "%s\n" "$push_body" | awk -v width="$(($col_width-4))" 'length > width{$0=substr($0,0,width)"..."}1') <(printf "%s\n" "$sender_name") <(printf "%s\n" "$sender_email") <(printf "%s\n" "$pushtypes") | pr -t -e$col_width)
+
+# Pagination for long push lists
+	if [[ -n "$cursor" ]]; then
+		while [[ -n "$cursor" ]]; do
+			get_cursor=$(curl -s -H "Access-Token: $access_token" $api_url/pushes?cursor="$cursor" 2> /dev/null)
+			echo -e "\n$list_header"
+			echo "$list_seperator"
+			echo "$list_body"
+		done
+	else 
+			echo -e "\n$list_header"
+			echo -e "$list_seperator"
+			echo "$list_body"
+	fi
+}
+ 
+### Initial request to upload a file
+# See: https://docs.pushbullet.com/#upload-request
+# 1) Provide file name and type, request file_url from server
+# 2) Upload file to upload_url obtained in response from step 1 
+# 3) Send push with file name and location parameters (see "file" in case $2 below)
+upload_file () {
+	mime_type=$(file -i -b "$file")
+# Step 1:
+	upload_request=$(curl -s -H "Access-Token: $access_token" -H "Content-Type: application/json" --data-binary "{\"file_name\":\"$file\",\"file_type\":\"$mime_type\"}" -X POST $api_url/upload-request)
+	file_url=$(echo $upload_request | grep "file_url" | awk -F, '{print $9}' | sed -e 's/^.*http/http/g' -e 's/"//g' -e 's/ /%20/g')
+	get_upload_url=$(echo $upload_request | grep "upload_url" | awk -F'"' '{print $42}')
+	content_type=$(echo $upload_request | grep "content-type" | awk -F: '{print $5}' | cut -f1 -d',' | tr -d '"')
+# Step 2:
+	curl -s -H "Access-Token: $access_token" $get_upload_url -F file="@$file" -X POST
+}
+
+# Main function that sends all pushes (except SMS)
+# See: https://docs.pushbullet.com/#pushes
+send_push () {	
+	case "$recip" in
+		all | All)
+			push_all=$(curl -s -H "Access-Token: $access_token" -H "Content-Type: application/json" $api_url/pushes -X POST --data-binary '{"type":"'"$type"'","title":"'"$title"'","body":"'"$body"'"'"$push_param"'}')
+		# Check if API returns an error
+			error_type=$(echo "$push_all" | awk -F: '{ print $4 }' | cut -f1 -d',' | tr -d '"')
+			error_msg=$(echo "$push_all" | awk -F: '{ print $5 }' | cut -f1 -d',' | tr -d '"' | tr -d "'")
+			if [[ "$error_type" = "invalid_request" ]]; then
+				echo "SHuttle: Error: Server returned with "$error_type": "$error_msg""
+				exit 1
+			fi
+		# Special output for weather forecast pushes
+			if [[ $weather_flag = 1 ]]; then
+				echo -e "\nWeather forecast for $get_date pushed to all devices\n"
+			else
+				echo -e "\nPush sent successfully to all devices\n"
+			fi
+			;;
+		!(all) | !(All))
+			push_recip=$(curl -s -H "Access-Token: $access_token" -H "Content-Type: application/json" $api_url/pushes -X POST --data-binary '{"type":"'"$type"'","title":"'"$title"'","body":"'"$body"'",'"$push_param"''"$recip_param"'}')
+		# Check if API returns an error
+			error_type=$(echo "$push_recip" | awk -F: '{ print $4 }' | cut -f1 -d',' | tr -d '"')
+			error_msg=$(echo "$push_recip" | awk -F: '{ print $5 }' | cut -f1 -d',' | tr -d '"' | tr -d "'")
+			if [[ "$error_type" = "invalid_request" ]]; then
+				echo "SHuttle: Error: Server returned with "$error_type": "$error_msg""
+				exit 1
+			fi
+			if [[ $weather_flag = 1 ]]; then
+				echo -e "\nWeather forecast for $get_date pushed to $recip\n"
+			else
+				echo -e "\nPush sent successfully to $recip\n"	
+			fi
+			;;
+	esac
+}
+
+### Usage text
+usage () {
+	cat <<- EOF
+	SHuttle - $ver
+	Usage: 
+
+	shuttle <action> <type> <recipient> <data>
+
+<action>:
+	chats | -c		Add, delete, or update chats
+	devices | -d        	Add, delete, or update devices
+	help | usage		Show the long usage text
+	list | -l 		List channels, chats, devices, pushes, or user info
+	push | -p		Send push to <device> or <chats>
+	setup 			Setup OAuth for SHuttle 
+
+<type>:
+For "push" <action>
+	file | -f		Push a file to <device> or <chats>
+	link | -l		Push a link to <device> or <chats>
+	note | -n		Push a note to <device> or <chats>
+	sms  | -s		Send an SMS to <phone number>
+	weather | -w		Send weather forecast to <device> or <chats>
+
+For "chats" or "devices" <action>:
+	add | -a		Add <chat> email address or <device> name
+	delete | del		Delete <chat> email address or <device> name
+	update | -u		Update <chat> email address or <device> name
+
+For "list" <action>:
+	channels		List channel subscriptions
+	chats | -c		List available chats recipients
+	devices | dev | -d	List available devices 	 
+	pushes			List pushes from the last t intervals (h hours, d days - default is 24h)
+	user 			List user info
+
+-----
+To push notes or files:   <action> <type> <recipient> <title> <body> (<file name>)
+To push links: 	          <action> <type> <recipient> <title> <URL>
+	       Note: If no URL title is given, SHuttle will parse the website for a title
+To send SMS: 		  <action> <type> <phone number> <SMS>
+
+Tips & Example usage:
+--------------
+To push a note to <device>:
+	shuttle push note "Galaxy S4" "This is the note title" "This is the note body"
+
+Use shortcut flags for repetitive tasks or automated pushes:
+	shuttle -p -f "Nexus 7" "System Logs" "For $(date +%m-%d-%y)" "/var/log/syslog"
+
+Push an SMS to <phone number>:
+	shuttle push sms "+1 9995551234" "Remember to get milk"
+(Your phone must be connected to the internet and set as "sms_device" in .shuttlerc)
+
+Add, delete, or update <chat> email or <device> name:
+	shuttle chats add "Moogie_the_Cat@cats.com"
+Delete accepts partial matches of e-mail, if they are unique:
+	shuttle chats del "moogie"
+
+Update <recipient> email address or <device> name:
+	shuttle chats update "Moogie_the_cat@cats.com" "Moogie@cats.com"
+	shuttle dev -u "Galaxy S4" "Jane's Galaxy S4"
+
+View recent pushes from the last t intervals (h hours, d days):
+shuttle list pushes 3d
+
+Push weather forecast for the next few days to <device>:
+	shuttle -p -w "Galaxy Tab 4"
+Note: You will be prompted for your zipcode
+
+<device> and <recipient> are case insensitive & can be a unique partial match, too:
+	shuttle push link galaxy_t "https://github.com/andyforceno/shuttle"
+
+For more examples and extension scripts, visit SHuttle on GitHub:
+https://github.com/andyforceno/shuttle
+EOF
+}
+
+### OAuth setup
+# See: https://docs.pushbullet.com/#oauth 
+setup () {
+	# Generate .shuttlerc if it is missing
+	touch ~/.shuttlerc
+
+cat > ~/.shuttlerc << EOL
+# Your access token, obtained by executing "shuttle setup"
+# Or from your Pushbullet account settings:
+# https://www.pushbullet.com/#settings/account
+access_token=""
+
+# Set your zipcode here for weather functionality 
+zipcode=""
+
+# Set the name of the device that will be sending SMS
+# Most likely your mobile phone
+# You can obtain the device name by executing "shuttle list devices"
+sms_device=""
+
+# Set the phone number associated with "sms_device" for SMS capabilities
+# Number must be preceeded by +, country, and locality exchange codes (example for USA: +13335551234)
+phone_number=""
+
+# Default time interval to use when listing recent pushes 
+time=24h
+
+# Do not modify anything beyond this point
+setup_flag=1
+EOL
+
+	redirect_url="https://www.pushbullet.com/authorize?client_id=$client_id&redirect_uri=https%3A%2F%2Fwww.pushbullet.com%2Flogin-success&response_type=token"	
+	
+	echo -e "\nFirst, you must authorize SHuttle with PushBullet" 
+	echo "Press any key to open the authorization URL in your browser"
+	echo "If your browser does not open, copy and paste the URL manually:"
+	echo $redirect_url
+	read -p ""
+# Not very portable
+	xdg-open "https://www.pushbullet.com/authorize?client_id=$client_id&redirect_uri=$redirect_url" > /dev/null
+	echo -e "\nAfter approving SHuttle, keep the browser window open." 	
+	echo -e "\nNow, you must copy the access token. You can find it at the end of the url in your browser window."
+	echo -e "Copy the code that appears after "\"access_token="\"\n"
+	echo -n "Paste your access token here: "
+	read access_token
+	sed -i "s/access_token=.*/access_token=$access_token/g" ~/.shuttlerc
+	. ~/.shuttlerc
+	curl -s https://api.pushbullet.com/oauth2/token -d grant_type=authorization_code -d client_id="$client_id" -d client_secret="$secret" -d code="$access_token" -X POST > /dev/null
+		
+	echo -e "\nSetup is complete."
+	echo -e "Execute "\"shuttle usage"\" to see the full usage text"
+	echo -e "Happy pushing!\n"
+	exit 0
+}
+
+setup_greeter () {
+	echo -e "Welcome to SHuttle - A Pushbullet CLI for Bash"
+	echo -e "\nTo use SHuttle, you must provide your PushBullet access token."
+	read -p "Do you want to run setup now to obtain your access token? (y/n): " -n 1 -r
+	echo ""
+		if [[ $REPLY =~ ^[Yy]$ ]]; then
+			setup
+			sed -i 's/setup_flag=.*/setup_flag=1/g' ~/.shuttlerc
+			exit 0
+		elif [[ $REPLY =~ ^[Nn]$ ]]; then
+			echo -e "\nYou can run setup at any time by executing "\"shuttle setup"\"\n"
+			exit 0
+		fi
+}
+
+# Welcome message when SHuttle is run for the first time
+if [[ ! -f ~/.shuttlerc ]]; then
+	setup_greeter
+fi
+
+source ~/.shuttlerc
+
+if [[ "$setup_flag" = "0" ]]; then
+	setup_greeter
+fi
+
+### <actions> ###
+case "$1" in
+	chats | -c )
+			get_chats_list
+			;;
+	devices | -d )
+			get_device_list
+			;;
+	help | --help | usage)
+			usage 
+			;;
+	list | -l)
+		# See types in case $2
+			if [[ -z "$2" ]]; then
+				echo "No list <type> defined. Try channels, chats, devices, or user'."
+			fi
+			;;	
+	push | -p)
+		# If title and body are empty, warn and exit
+			if [[ -z "$title" && -z "$body" ]]; then
+				echo "SHuttle: Error: No <data>. Check the title and body, and try again."
+				exit 1
+			fi
+		# If $recip doesn't have an @, check device list (ignores device checking if pushing SMS or $recip = all)
+			if [[ "$recip" != *@* ]] && [[ "$type" != +(sms|-s) ]] && [[ "$recip" != [Aa]ll ]]; then
+				get_device_list			
+			fi
+#		 If $recip doesn't match a string in device list, $recip must be a <contact>
+			if [[ -z "$dev_check" ]] && [[ "$type" != +(sms|-s|clip|-c) ]] && [[ "$recip" != [Aa]ll ]]; then
+				get_chats_list
+			fi
+		# Check that <device> or <chat> exists
+		# This is ignored when pushing to All or when pushing SMS
+			if [[ -z "$line_num" ]] && [[ ! "$recip" != "+*" ]] && [[ "$recip" != [Aa]ll ]]; then
+				echo -e "\nSHuttle: Error: Unknown recipient. \nExecute "\"shuttle list devices"\" and "\"shuttle list chats"\" to see a list of available recipients \n"
+				exit 1
+			fi
+		# Format API call depending on user input of <chat> email or <device> name
+		# Chat emails
+			if [[ -n "$email_check" ]]; then
+				recip="$email_check"
+				recip_param="\"email\":\"$email_check\""
+		# Device names
+			elif [[ -n "$dev_check" ]]; then
+				recip="$dev_check"
+				recip_param="\"device_iden\":\"$dev_id\""
+			fi
+			;;
+	setup)
+			setup
+			;;
+		*)
+			if [[ "$setup_flag" = "1" ]] && [[ "$1" != "setup" ]]; then
+# INFO: If you change the usage text, adjust head argument value accordingly
+				usage | head -n 38
+				echo "-----"
+				echo -e "Execute "\"shuttle help"\" for the full usage text & example usage\n"
+			fi
+			;; 
+esac
+
+### <types> ###
+case "$2" in
+		add | -a)
+		# Check if <contact> is a duplicate
+			if [[ -n "$email_check" ]]; then
+				echo -e "\nA chat with this email address already exists\n"
+				exit 1
+			fi
+			add_chat=$(curl -s -H "Access-Token: $access_token" -H "Content-Type: application/json" $api_url/chats -X POST --data-binary '{"email":"'"$3"'"}')
+		# Check if API returns an error
+			error_type=$(echo "$add_chat" | awk -F: '{ print $4 }' | cut -f1 -d',' | tr -d '"')
+			error_msg=$(echo "$add_chat" | awk -F: '{ print $5 }' | cut -f1 -d',' | tr -d '"' | tr -d "'")
+			if [[ "$error_type" = "invalid_request" ]]; then
+				echo "SHuttle error: Server returned with "$error_type": "$error_msg""
+				exit 1
+			else
+				echo -e "\nChat added successfully\n"
+			fi
+			;;
+	channel | channels)
+			get_channels=$(curl -s -H "Access-Token: $access_token" $api_url/subscriptions -X GET)
+			chan_names=$(echo $get_channels | tr ',' '\n '| grep -w "name" | cut -f2 -d':' | tr -d '"')
+			chan_tags=$(echo $get_channels | tr ',' '\n '| grep -w "tag" | cut -f2 -d':' | tr -d '"')
+			chan_desc=$(echo $get_channels | tr ',' '\n '| grep -w "description" | cut -f2 -d':' | tr -d '"' | tr -d '}')
+			col_width=$(($term_width/3))
+
+			echo -e "\nName: \t\t\t Description: \t\t\t\t  	Tag:"
+			echo -e "---------------------------------------------------------------------------------------"
+			paste <(printf "%s\n" "$chan_names") <(printf "%s\n" "$chan_desc") <(printf "%s\n" "$chan_tags" "") | pr -t -e24
+			;;
+	chats | -c)
+			get_chats_list
+# Pagination for long chats list
+# TODO: One chat prints twice, not sure why. In my account, there are inactive chats that are retrieved on page 2
+# 		but they aren't displayed, and this may be cause of bug.
+#			if [[ -n "$get_cursor" ]]; then
+#					echo -e "\n$list_header"
+#					echo "$list_seperator"
+#				while [[ -n "$get_cursor" ]]; do
+#					get_cursor=$(curl -s -H "Access-Token: $access_token" $api_url/chats?cursor="$get_cursor" 2> /dev/null)
+#					echo "$list_body"
+#				done
+#			else 
+	# If $get_cursor is empty, list chats the regular way
+			echo -e "\nChats:"
+			echo "------"
+			paste <(printf "%s\n" "$chat_emails")  | sort -f
+			echo -e ""
+#			fi
+			;;
+	devices | dev | -d)
+			get_device_list
+			echo -e "\nDevices:"
+			echo "--------"
+			echo -e "$device_list\nAll\n" | sort -f
+			;;
+# For pro (paid) accounts only
+# Untested since introduction of Pro tier accounts, ymmv
+#	clip)
+#			curl -s -H "Access-Token: $access_token" -H "Content-Type: application/json" --data-binary '{"type": "push", "push": {"type":"clip", "body":"'"$4"'", "source_device_iden":"'"$3"'", "source_user_iden":"'"$user_iden"'"}}' -X POST $api_url/ephemerals > /dev/null
+#			echo -e "\nClip successfully pushed to clipboard of $dev_check \n"
+#			;;
+	del | delete) 
+# Confirm delete
+	read -p "Are you sure you want to delete "$email_check"? (y/n) " -n 1 -r
+	echo ""
+	if [[ $REPLY =~ ^[Yy]$ ]]; then
+	# If <contact> exists and is a unique target, remove it
+		if [[ $(echo "$line_num" | wc -w) = 1 ]]; then
+			del_chat=$(curl -s -H "Access-Token: $access_token" $api_url/chats/$contact_id -X DELETE)
+		# Check if API returns an error
+			error_type=$(echo "$del_chat" | awk -F: '{ print $4 }' | cut -f1 -d',' | tr -d '"')
+			error_msg=$(echo "$del_chat" | awk -F: '{ print $5 }' | cut -f1 -d',' | tr -d '"' | tr -d "'")
+			if [[ "$error_type" = "invalid_request" ]]; then
+				echo "SHuttle error: Server returned with "$error_type": "$error_msg""
+				exit 1
+			else
+				echo -e "\nContact "$email_check" successfully removed\n"
+			fi
+		fi
+	elif [[ $REPLY =~ ^[Nn]$ ]]; then
+		echo -e "Chat delete cancelled."
+		exit 0
+	fi
+			;;	
+	file | -f)		
+		# Check that <file> exists
+			if [[ ! -e "$file" ]]; then
+					echo -e "\nFile not found\n"
+					exit 1
+			fi
+			type="file"
+			upload_file	
+	# Step 3 from upload_file(), the actual request is sent from send_push()
+	# Modify JSON formatting depending on target 
+		if [[ "$recip" = [Aa]ll ]]; then
+			push_param=",\"file_type\":\"$content_type\",\"file_url\":\"$file_url\",\"file_name\":\"$file\""
+		else
+			push_param="\"file_type\":\"$content_type\",\"file_url\":\"$file_url\",\"file_name\":\"$file\","
+		fi
+		echo_param="\n File: $file"
+	 	send_push															
+			;;
+	link | -l)
+			type="link"
+		# If no url title is given, then crudely attempt to extract title from the website
+		# This doesn't always work properly, depending on the site. 
+			if [[ $4 == *"http"* || $4 == *"www"* ]]; then
+				link="$4"
+				title=$(curl -s "$link" | grep -iPo '(?<=<title>)(.*)(?=</title>)')
+			else
+				link="$6"		
+			fi
+			echo_param="\n URL: "$link""
+		# Modify JSON formatting depending on target 
+			if [[ "$recip" = [Aa]ll ]]; then
+				push_param=",\"url\":\"$link\""										
+			else
+				push_param="\"url\":\"$link\","
+			fi
+			send_push
+			;;
+# Notes are the "standard" form of a push request, so we don't need much here
+	note | -n)
+			type="note"
+			send_push
+			;;
+	pushes | -p)
+			if [[ -n $3 ]];	then
+				time=$3
+			fi
+			get_push_list
+			;;
+	sms | -s)
+				# Prompt user to configure SMS device
+			if [[ -z "$sms_device" ]]; then
+				echo "Enter name of SMS device enclosed in double quotes (execute "\"shuttle list devices"\" to see available devices):" 
+				read -p "" sms_device
+				sed -i "s/sms_device=.*/sms_device=$sms_device/g" ~/.shuttlerc
+			fi
+		# Prompt user to configure SMS device <phone number>
+			if [[ -z "$phone_number" ]]; then
+				echo "Enter the phone number of the SMS device (without dashes), beginning with + and your country code (example for USA: +18881234567):" 
+				read -p "" phone_number
+				sed -i "s/phone_number=.*/phone_number="$phone_number"/g" ~/.shuttlerc
+			fi
+		# Warn user if <phone number> is invalid
+			if [[ ! "$recip" =~ [0-9]$ ]]; then
+				echo -e "\nNot a valid <phone number>\n"
+				exit 1
+			fi
+		# Warn user if <phone number> lacks leading +
+			if [[ ! "$recip" =~ ^\+ ]]; then
+				echo -e "\nRecipient's phone number must begin with a + symbol\n"
+				exit 1
+			fi
+			type="sms"
+			get_user_info
+			get_device_list
+		# Call to push SMS
+			curl -s $access_token: -X POST $api_url/ephemerals --header "Content-Type: application/json" \
+			--data-binary '{"type": "push", "push": {"type": "messaging_extension_reply","package_name": "com.pushbullet.android","source_user_iden": "'"$user_iden"'", "target_device_iden": "'"$dev_id"'", "conversation_iden": "'"$3"'","message": "'"$4"'" } }' > /dev/null
+
+		# Check if API returns an error
+			error_type=$(echo "$push_all" | awk -F: '{ print $4 }' | cut -f1 -d',' | tr -d '"')
+			error_msg=$(echo "$push_all" | awk -F: '{ print $5 }' | cut -f1 -d',' | tr -d '"' | tr -d "'")
+			if [[ "$error_type" = "invalid_request" ]]; then
+				echo "SHuttle: Error: Server returned with "$error_type": "$error_msg""
+				exit 1
+			else
+				echo -e "\nSMS sent successfully\n"	
+			fi
+			;;
+	update | -u)	
+		# Check that updated <contact> isn't a duplicate
+			if [[ "$action" = +(chats|-c) ]]; then
+				dupe_contact=$(curl -s -H "Access-Token: $access_token" $api_url/chats -X POST -d email="$4" | grep "already")
+				if [[ -n $dupe_contact ]]; then
+					echo -e "\nA chat with this email address already exists\n"
+					exit 1
+				fi
+		# Delete old <contact> and re-add with old name and new email 
+				curl -s -H "Access-Token: $access_token" $api_url/chats/$contact_id -X DELETE > /dev/null
+				curl -s -H "Access-Token: $access_token" -H "Content-Type: application/json" $api_url/chats -X POST --data-binary '{"email":"'"$4"'"}'
+				echo -e "\n Chat "$email_check" successfully updated\n"
+			elif [[ "$action" = +(devices|dev|-d) ]]; then
+				curl -s -H "Access-Token: $access_token" $api_url/devices/$dev_id -d nickname="$4" -X POST > /dev/null
+				echo -e "\n Device name successfully updated\n"
+			fi
+			;;
+	user)
+			get_user_info
+			echo -e "Name: \t\t$user_name"
+			echo -e "Email: \t\t$user_email" 
+			echo -e "User ID: \t$user_iden" 
+			echo -e "Avatar url: \t$avatar_url" 
+			;;
+	weather | -w)
+			weather_flag=1
+			if [[ -z $zipcode ]]; then
+				read -p "Enter your zipcode: " zipcode 
+				sed -i "s/zipcode=.*/zipcode=$zipcode/g" ~/.shuttlerc
+			fi
+	# Check zipcode length
+			zip_num=${#zipcode}				
+			if [[ $zip_num < 5 ]]; then 
+				echo -e "\n Error: Insufficient digits in zipcode \n" 
+				exit 0
+			fi
+			get_date=$(date | awk '{print $1, $2, $3}')	
+			get_weather=$(curl -s http://api.wunderground.com/api/7f469fcb4cddb6fa/forecast/geolookup/conditions/q/$zipcode.json | grep -w 'title\|fcttext' | cut -d ':' -f2 | sed -n '1!p' | sed -e 's/\"//g' -e 's/,//g' -e '1~2s/$/:/g')
+			type="note"
+			push_param=""
+			title="$(echo -n "Forecast: $get_date")"
+			body="$(echo -e "$get_weather")"
+			send_push
+			;;
+esac
+
+shopt -u nocasematch
+
+# The MIT License (MIT)
+# Copyright (c) 2016 Andy Forceno
+# 
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), 
+# to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, 
+# and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+# 
+# The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, 
+# WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
