@@ -1,27 +1,42 @@
 ## Changelog:
-v0.9.8  - Added custom redirect URI for OAuth setup 
- 		- Fixed invalid_response 'code' error in setup() (was mistakenly using server-side authentication)
- 		- Re-wrote error-checking and made it a function
- 		- Fixed pagination for chats and devices (pagination for pushes list is now broken)
- 		- Added error-checking in API responses during setup()
- 		- Fixed empty line printing bug when listing chats and devices
-v0.9.7  - Added finishing touches to setup flow
- 		- Pagination for long chats (buggy and currently commented out)
- 		- Miscellaneous fixes
-v0.9.6  - Fixed file pushing (invalid file_url)
- 		- Parse webpage titles even when user omits "http://" (if site supports it)
- 		- Rewrote API calls (for pushes) in JSON formatting 
- 		- Added warning when user sends empty pushes 
- 		- Added confirmation when deleting chats
-v0.9.5  - Switched from XML to JSON for Weather Underground's API output 
- 	    - Modified OAuth setup flow to require less user intervention 
- 	    - Commented out pushing to clipboard functionality (premium feature only now) 
- 	    - Removed -d flag for delete, added -l -d (list pushes) and -l -c (list chats)	
-v0.9.4  - Implemented error-checking and display of error messages from API calls
- 	    - upload_request and file uploading calls adapted to API update (file pushing is now broken, woo!)
-v0.9.3  - Fully implemented OAuth! Yay!
- 	    - Rewrote setup(), to make SHuttle setup more straight-forward
-v0.9.2  - Chat names have been removed (deprecated in API)
- 	    - Added saner command line arguments (new action: list, with types: chats, devices, and pushes)
-v0.9.1  - Switch from chats object to Chats object (API update)
+v0.9.8:
+* Added custom redirect URI for OAuth setup 
+* Fixed invalid_response 'code' error in setup() (was mistakenly using server-side authentication)
+* Re-wrote error-checking and made it a function
+* Fixed pagination for chats and devices (pagination for pushes list is now broken)
+* Added error-checking in API responses during setup()
+* Fixed empty line printing bug when listing chats and devices
+
+v0.9.7:   
+* Added finishing touches to setup flow
+* Pagination for long chats (buggy and currently commented out)
+* Miscellaneous fixes
+
+v0.9.6:  
+* Fixed file pushing (invalid file_url)
+* Parse webpage titles even when user omits "http://" (if site supports it)
+* Rewrote API calls (for pushes) in JSON formatting 
+* Added warning when user sends empty pushes 
+* Added confirmation when deleting chats
+
+v0.9.5:  
+* Switched from XML to JSON for Weather Underground's API output 
+* Modified OAuth setup flow to require less user intervention 
+* Commented out pushing to clipboard functionality (premium feature only now) 
+* Removed -d flag for delete, added -l -d (list pushes) and -l -c (list chats)	
+
+v0.9.4:  
+* Implemented error-checking and display of error messages from API calls
+* upload_request and file uploading calls adapted to API update (file pushing is now broken, woo!)
+
+v0.9.3:  
+* Fully implemented OAuth! Yay!
+* Rewrote setup(), to make SHuttle setup more straight-forward
+
+v0.9.2:  
+* Chat names have been removed (deprecated in API)
+* Added saner command line arguments (new action: list, with types: chats, devices, and pushes)
+
+v0.9.1:  
+* Switch from chats object to Chats object (API update)
  	
