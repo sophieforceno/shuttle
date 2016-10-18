@@ -1,4 +1,8 @@
 ## Changelog:
+v0.9.9:
+* As requested, SHuttle now accepts input from stdin! Many things can now be piped to SHuttle!
+	Usage: command | shuttle -p -n "title"
+* Listing of pushes is still broken... to be fixed next release
 v0.9.8:
 * Added custom redirect URI for OAuth setup 
 * Fixed invalid_response 'code' error in setup() (was mistakenly using server-side authentication)
@@ -22,7 +26,7 @@ v0.9.6:
 v0.9.5:  
 * Switched from XML to JSON for Weather Underground's API output 
 * Modified OAuth setup flow to require less user intervention 
-* Commented out pushing to clipboard functionality (premium feature only now) 
+* Commented out pushing to clipboard functionality (now a premium feature only) 
 * Removed -d flag for delete, added -l -d (list pushes) and -l -c (list chats)	
 
 v0.9.4:  
@@ -38,5 +42,5 @@ v0.9.2:
 * Added saner command line arguments (new action: list, with types: chats, devices, and pushes)
 
 v0.9.1:  
-* Switch from chats object to Chats object (API update)
+* Switched from Contacts object to Chats object (API update)
  	

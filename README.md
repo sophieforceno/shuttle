@@ -1,6 +1,6 @@
 README.md
 
-**SHuttle v0.9.8-(073116)**
+**SHuttle v0.9.9**
 
 # Introduction:
 SHuttle is a Pushbullet client written in Bash shell script. It allows the sending of push notifications from the Linux CLI and from within Bash scripts. SHuttle itself cannot receive pushes, in that regard, it is not a full client. I wrote SHuttle primarily as a means to receive real-time notifications for system administration purposes. You can find many of the scripts I wrote for sys admin use in the shuttle-utils repository: https://github.com/andyforceno/shuttle-utils
@@ -65,13 +65,16 @@ devices | dev | -d      List available devices
 pushes			        List pushes from the last t intervals (h hours, d days - default is 24h)
 user 		        	List user info
 
-
 Notes & Examples (not exhaustive):
 To push notes or files:   <action> <type> <recipient> <title> <body> (<file name>)
 To push links: 	          <action> <type> <recipient> <title> <URL>
        Note: If no URL title is given, SHuttle will parse the website for a title
 To push clips: 		  <action> <type> <device> <clip> 
 To send SMS: 		  <action> <type> <phone number> <SMS>
+
+SHuttle accepts pipes from most commands. Examples:
+ps -eo pid,cmd,ppid,%mem,%cpu --sort=pcpu | tail -10 | shuttle -p -n browser "Top CPU usage by process"
+ls -alh /var/log | awk '{ print $5 "   " $9 }' | grep 'M\|G' | shuttle -p -n phone "Large log files"
 
 SHuttle can do partial matches of device names and chat addresses:
 To push a note to your friend "Jane Doe":

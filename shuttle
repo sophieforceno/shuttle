@@ -1,7 +1,7 @@
 #! /bin/bash
 
 #
-# SHuttle v0.9.8-(073116) 
+# SHuttle v0.9.9-(101716) 
 # A Pushbullet CLI for the Bash shell
 # by Andy Forceno <andy@aurorabox.tech>
 #
@@ -14,19 +14,20 @@
 # See README.md for installation and setup instructions
 
 ### Known issues:
+# List pushes is broken
 # Bash interprets money amounts in USD as positional parameters ("$20" is pushed as "0")
 # Empty cells of push list get filled in with next available cell. Cause is unknown.
-# Unknown if SMS pushing still works (untested recently; now requires Android 4.4+)
-# Pagination of pushes list is broken, displays only a single page at a time
+# Unknown if SMS pushing still works (untested recently)
 
 shopt -s extglob
 shopt -s nocasematch
 
-start=$(date +%s.%N)
+# Start time of script to calculate runtime
+# start=$(date +%s.%N)
 
-# Version and build (mdy format)
-ver="v0.9.8-(073116)"
-
+# Version
+ver="v0.9.9"
+IFS=$'\n'
 args=("$@")
 action="$1"
 type="$2"
@@ -39,9 +40,37 @@ api_url="https://api.pushbullet.com/v2"
 client_id="bNPNXDYqWvRSEAH6iFlFUU3z8f7dVuoT"
 secret="kMb7x8HdRVdFcWOINJizuiSvXblZrL6V"
 
-# TODO: Testing  tput -T issues
-TERM="xterm"
+# TODO: Testing tput -T issues
+TERM="dumb"
 term_width=$(tput cols)
+
+## Parse stdin
+parse_input () {
+# Check if push body is on stdin	
+# Some of this code was graciously borrowed from pushbullet-bash
+# Thank you, Felix!
+# See: https://github.com/Red5d/pushbullet-bash/blob/master/pushbullet#L386-L391
+	if [ ! -t 0 ] && [[ "$type" = +(note|-n) ]]; then
+		IFS=$'\n'
+		# Pipe stdin via cat
+		body=$(cat)
+		body=($(printf "%s\n" "$body"))
+
+		# Insert newlines after every line, otherwise push will fail
+		for i in "${body[@]}"; do
+			output+=$(printf "%s" "$i" | sed 's/$/\\n/')
+		done
+		body="${output[@]}"
+	# Workaround to make weather pushes work
+	elif [[ "$weather_flag" = 1 ]]; then
+	#	echo that
+		body=($(printf "%s\n" "$get_weather"))
+		for i in "${body[@]}"; do
+			output+=$(printf "%s" "$i" | sed 's/$/\\n/')
+		done
+		body="${output[@]}"
+	fi
+}
 
 check_error () {
 ## Rate-limit checking
@@ -85,7 +114,7 @@ get_device_list () {
 	dev_idens=$(echo $api_request | tr '{' '\n' | grep active\"\:true | tr ',' '\n' | grep iden | cut -d'"' -f4)
 # For auto-completion of device names
 # Gets full device name from partial input
-	dev_check=$(echo -e "$dev_names" | grep -iF "$recip") 
+	recip_device=$(echo -e "$dev_names" | grep -iF "$recip") 
 
 # If type = SMS then get the $dev_iden of $sms_device (via .shuttlerc)
 # otherwise, get $dev_iden of $recip specified on command-line
@@ -98,9 +127,9 @@ get_device_list () {
 	dev_id=$(echo "$dev_idens" | sed -n $line_num'p' 2> /dev/null)   
   
 # If $recip matches more than one <device> name, warn user
-	if [[ "$action" = +(-p|push) ]] && ( [[ $(echo "$line_num" | wc -l) > 1 ]] || [[ $(echo "$dev_check" | wc -l) > 1 ]] ); then
+	if [[ "$action" = +(-p|push) ]] && ( [[ $(echo "$line_num" | wc -l) > 1 ]] || [[ $(echo "$recip_device" | wc -l) > 1 ]] ); then
 		echo -e "\nMore than one <device> found:"
-		echo -e "$dev_check"
+		echo -e "$recip_device"
 		echo -e "\nPlease specify a unique partial or full match"
 		exit 1
 	fi
@@ -131,19 +160,19 @@ get_chats_list () {
 	chat_id=$(echo "$chat_idens" | sed -n $line_num'p' 2> /dev/null)  
 	# For auto-completion of recipient names
 	# Gets full email address from partial input
-	email_check=$(echo "$chat_emails" | grep -iF "$recip") 		
+	recip_email=$(echo "$chat_emails" | grep -iF "$recip") 		
 
 	# Don't check <chat> if listing or adding chats
 	if [[ "$type" != +(add|-a|chats|-c) ]]; then
 		# If specified <chat> doesn't exist 
 			if [[ -z "$line_num" ]]; then
-				echo -e "\nChat e-mail address not found. \nExecute "\"shuttle list chats"\" to see a list of available recipients."
+				echo -e "\nError: Chat e-mail address not found. \nExecute "\"shuttle list chats"\" to see a list of available recipients."
 				exit 1
 			fi
 		# Check that <chat> e-mail address is a unique target
-			if [[ $(echo "$email_check" | wc -l) > 1 ]]; then
+			if [[ $(echo "$recip_email" | wc -l) > 1 ]]; then
 					echo -e "\nMore than one chat found:"
-					paste <(printf "%s\n" "$email_check")
+					paste <(printf "%s\n" "$recip_email")
 					echo -e "\nPlease specify a unique partial or full match"
 					exit 1
 			fi
@@ -244,11 +273,12 @@ upload_file () {
 #		if [[ "$e2e_pass_1" != "$e2e_pass_2" ]]; then
 #		        echo -e "Shuttle: Error: Passwords do not match! Please try again.\n" 
 #				continue
-#		elif [[ -z "$e2e_pass_1" || -z "$e2e_pass_2" ]]; then
+#		elif [[ -z "$e2e_pass_1" || -z "$e2e_pass_2" ]]; thenTODO
 #		        echo -e "Shuttle: Error: Password can't be blank! Please try again.\n" 
 #				continue
 #		else
 #			sed -i "s/e2e_pass=.*/e2e_pass=$e2e_pass/g" ~/.shuttlerc
+#	# TODO: How is password encrypted, how is it transmitted?
 #			echo "Your end-to-end encryption password is set!" 
 #			break
 #		fi
@@ -274,7 +304,7 @@ send_push () {
 				echo -e "\nPush sent successfully to all devices\n"
 			fi
 			;;
-		!(all) | !(All))
+		!(all) | !(All))																										
 			api_request=$(curl -s -H "Access-Token: $access_token" -H "Content-Type: application/json" $api_url/pushes --data-binary '{"type":"'"$type"'","title":"'"$title"'","body":"'"$body"'",'"$push_param"''"$recip_param"'}' -X POST)
 			check_error
 			if [[ $weather_flag = 1 ]]; then
@@ -290,32 +320,30 @@ send_push () {
 usage () {
 	cat <<- EOF
 	SHuttle - $ver
-	Usage: 
+	Usage: 	shuttle [action] [type] [recipient] [data]
 
-	shuttle <action> <type> <recipient> <data>
-
-<action>:
+[action]:
 	chats | -c		Add, delete, or update chats
 	devices | -d        	Add, delete, or update devices
 	help | usage		Show the long usage text
 	list | -l 		List channels, chats, devices, pushes, or user info
 	push | -p		Send push to <device> or <chats>
-	setup 			Acquire an access token
+	setup 			Acquire an access token (and generate .shuttlerc)
 
-<type>:
-For "push" <action>
-	file | -f		Push a file to <device> or <chats>
-	link | -l		Push a link to <device> or <chats>
-	note | -n		Push a note to <device> or <chats>
+[type]:
+For "push" [action]:
+	file | -f		Push a file to <device> or <chat>
+	link | -l		Push a link to <device> or <chat>
+	note | -n		Push a note to <device> or <chat>
 	sms  | -s		Send an SMS to <phone number>
-	weather | -w		Send weather forecast to <device> or <chats>
+	weather | -w		Send weather forecast to <device> or <chat>
 
-For "chats" or "devices" <action>:
+For "chats" or "devices" [action]:
 	add | -a		Add <chat> email address or <device> name
 	delete | del		Delete <chat> email address or <device> name
 	update | -u		Update <chat> email address or <device> name
 
-For "list" <action>:
+For "list" [action]:
 	channels		List channel subscriptions
 	chats | -c		List available chats recipients
 	devices | dev | -d	List available devices 	 
@@ -323,10 +351,15 @@ For "list" <action>:
 	user 			List user info
 
 -----
-To push notes or files:   <action> <type> <recipient> <title> <body> (<file name>)
-To push links: 	          <action> <type> <recipient> <title> <URL>
+To push notes or files:   shuttle push note [recipient] [title] [body] ([file name])
+To push links: 	          shuttle push link [recipient] [title] [body]
 	       Note: If no URL title is given, SHuttle will parse the website for a title
-To send SMS: 		  <action> <type> <phone number> <SMS>
+To push SMS: 		  shuttle push sms <phone number> <SMS>
+
+Note: SHuttle accepts pipes from most commands. 
+Examples:
+ps -eo pid,cmd,ppid,%mem,%cpu --sort=pcpu | tail -10 | shuttle -p -n browser "Top CPU usage by process"
+ls -alh /var/log | awk '{ print $5 "   " $9 }' | grep 'M\|G' | shuttle -p -n phone "Large log files"
 
 Tips & Example usage:
 --------------
@@ -347,20 +380,21 @@ Delete accepts partial matches of e-mail, if they are unique:
 
 Update <recipient> email address or <device> name:
 	shuttle chats update "Moogie_the_cat@cats.com" "Moogie@cats.com"
-	shuttle dev -u "Galaxy S4" "Jane's Galaxy S4"
+	shuttle devices -u "Galaxy S4" "Jane's Galaxy S4"
 
 View recent pushes from the last t intervals (h hours, d days):
 shuttle list pushes 3d
 
 Push weather forecast for the next few days to <device>:
-	shuttle -p -w "Galaxy Tab 4"
-Note: You will be prompted for your zipcode
+	shuttle -p -w "Tablet"
+Note: You will be prompted for your zipcode. Only tested within the U.S.
 
 <device> and <recipient> are case insensitive & can be a unique partial match, too:
-	shuttle push link galaxy_t "https://github.com/andyforceno/shuttle"
+	shuttle push link s4 "https://github.com/andyforceno/shuttle"
 
 For more examples and extension scripts, visit SHuttle on GitHub:
 https://github.com/andyforceno/shuttle
+https://github.com/andyforceno/shuttle-utils
 EOF
 }
 
@@ -440,6 +474,7 @@ if [[ -f "$HOME"/.shuttlerc ]]; then
 	if [[ "$setup_flag" = "0" || -z "$access_token" ]]; then
 		setup_greeter
 	fi
+# If config file doesn't exist
 else
 	setup_greeter
 fi
@@ -452,7 +487,7 @@ case "$1" in
 	devices | -d )
 			get_device_list
 			;;
-	help | --help | usage)
+	help | --help | -h | usage)
 			usage 
 			;;
 	list | -l)
@@ -463,32 +498,32 @@ case "$1" in
 			;;	
 	push | -p)
 		# If title and body are empty, warn and exit
-			if [[ -z "$title" && -z "$body" ]]; then
-				echo "SHuttle: Error: No <data>. Check the title and body, and try again."
-				exit 1
-			fi
+		if [[ -z "$title" && -z "$body" && "$type" != +(weather|-w) ]]; then
+			echo "SHuttle: Error: No data. Check the title and body, and try again."
+			exit 1
+		fi
 		# If $recip doesn't have an @, check device list (ignores device checking if pushing SMS or $recip = all)
 			if [[ "$recip" != *@* ]] && [[ "$type" != +(sms|-s) ]] && [[ "$recip" != [Aa]ll ]]; then
 				get_device_list			
 			fi
-#		 If $recip doesn't match a string in device list, $recip must be a <chat>
-			if [[ -z "$dev_check" ]] && [[ "$type" != +(sms|-s|clip|-c) ]] && [[ "$recip" != [Aa]ll ]]; then
+		# If $recip doesn't match a string in device list, $recip must be a <chat>
+			if [[ -z "$recip_device" ]] && [[ "$type" != +(sms|-s|clip|-c) ]] && [[ "$recip" != [Aa]ll ]]; then
 				get_chats_list
 			fi
 		# Check that <device> or <chat> exists
 		# This is ignored when pushing to All or when pushing SMS
-			if [[ -z "$line_num" ]] && [[ ! "$recip" != "+*" ]] && [[ "$recip" != [Aa]ll ]]; then
+			if [[ -z "$line_num" ]] && [[ "$recip" = "+*" ]] && [[ "$recip" != [Aa]ll ]]; then
 				echo -e "\nSHuttle: Error: Unknown recipient. \nExecute "\"shuttle list devices"\" and "\"shuttle list chats"\" to see a list of available recipients \n"
 				exit 1
 			fi
 		# Format API call depending on user input of <chat> email or <device> name
 		# Chat emails
-			if [[ -n "$email_check" ]]; then
-				recip="$email_check"
-				recip_param="\"email\":\"$email_check\""
+			if [[ -n "$recip_email" ]]; then
+				recip="$recip_email"
+				recip_param="\"email\":\"$recip_email\""
 		# Device names
-			elif [[ -n "$dev_check" ]]; then
-				recip="$dev_check"
+			elif [[ -n "$recip_device" ]]; then
+				recip="$recip_device"
 				recip_param="\"device_iden\":\"$dev_id\""
 			fi
 			;;
@@ -498,7 +533,7 @@ case "$1" in
 		*)
 			if [[ "$setup_flag" = "1" ]] && [[ "$1" != "setup" ]]; then
 # INFO: If you change the usage text, adjust head argument value accordingly
-				usage | head -n 38
+				usage | head -n 43
 				echo "-----"
 				echo -e "Execute "\"shuttle help"\" for the full usage text & example usage\n"
 			fi
@@ -509,7 +544,7 @@ esac
 case "$2" in
 		add | -a)
 		# Check if <chat> is a duplicate
-			if [[ -n "$email_check" ]]; then
+			if [[ -n "$recip_email" ]]; then
 				echo -e "\nA chat with this email address already exists\n"
 				exit 1
 			fi
@@ -524,8 +559,8 @@ case "$2" in
 			chan_desc=$(echo $get_channels | tr ',' '\n '| grep -w "description" | cut -f2 -d':' | tr -d '"' | tr -d '}')
 			col_width=$(($term_width/3))
 
-			echo -e "\nName: \t\t\t Description: \t\t\t\t  	Tag:"
-			echo -e "---------------------------------------------------------------------------------------"
+			printf "%s\n" "Channel: 	 			Description: 		  	Tag:"
+			printf "%s\n" "---------------------------------------------------------------------------------------"
 			paste <(printf "%s\n" "$chan_names") <(printf "%s\n" "$chan_desc") <(printf "%s\n" "$chan_tags" "") | pr -t -e24
 			;;
 	chats | -c)
@@ -544,22 +579,22 @@ case "$2" in
 # Untested since introduction of Pro tier accounts, ymmv
 #	clip)
 #			curl -s -H "Access-Token: $access_token" -H "Content-Type: application/json" --data-binary '{"type": "push", "push": {"type":"clip", "body":"'"$4"'", "source_device_iden":"'"$3"'", "source_user_iden":"'"$user_iden"'"}}' -X POST $api_url/ephemerals > /dev/null
-#			echo -e "\nClip successfully pushed to clipboard of $dev_check \n"
+#			echo -e "\nClip successfully pushed to clipboard of $recip_device \n"
 #			;;
 	del | delete) 
 # Confirm delete
-	read -p "Are you sure you want to delete "$email_check"? (y/n) " -n 1 -r
+	read -p "Are you sure you want to delete "$recip_email"? (y/n) " -n 1 -r
 	echo ""
 	if [[ $REPLY =~ ^[Yy]$ ]]; then
 	# If <chat> exists and is a unique target, remove it
 		if [[ $(echo "$line_num" | wc -w) = 1 ]]; then
 			api_request=$(curl -s -H "Access-Token: $access_token" $api_url/chats/$chat_id -X DELETE)
 			check_error
-			echo -e "\nchat "$email_check" successfully removed\n"
+			echo -e "\nchat "$recip_email" successfully removed\n"
 
 		fi
 	elif [[ $REPLY =~ ^[Nn]$ ]]; then
-		echo -e "Chat delete cancelled."
+		echo -e "Chat deletion cancelled."
 		exit 0
 	fi
 			;;	
@@ -600,9 +635,10 @@ case "$2" in
 			fi
 			send_push
 			;;
-# Notes are the "standard" form of a push request, so we don't need much here
+# Notes are the "standard" push type, so we don't need much here
 	note | -n)
 			type="note"
+			parse_input
 			send_push
 			;;
 	pushes | -p)
@@ -615,7 +651,7 @@ case "$2" in
 			echo "$list_body"
 			;;
 	sms | -s)
-				# Prompt user to configure SMS device
+		# Prompt user to configure SMS device
 			if [[ -z "$sms_device" ]]; then
 				echo "Enter name of SMS device enclosed in double quotes (execute "\"shuttle list devices"\" to see available devices):" 
 				read -p "" sms_device
@@ -659,7 +695,7 @@ case "$2" in
 				check_error
 				api_request=$(curl -s -H "Access-Token: $access_token" -H "Content-Type: application/json" $api_url/chats -X POST --data-binary '{"email":"'"$4"'"}')
 				check_error
-				echo -e "\n Chat "$email_check" successfully updated\n"
+				echo -e "\n Chat "$recip_email" successfully updated\n"
 			elif [[ "$action" = +(devices|dev|-d) ]]; then
 				curl -s -H "Access-Token: $access_token" $api_url/devices/$dev_id -d nickname="$4" -X POST > /dev/null
 				echo -e "\n Device name successfully updated\n"
@@ -689,16 +725,18 @@ case "$2" in
 			type="note"
 			push_param=""
 			title="$(echo -n "Forecast: $get_date")"
-			body="$(echo -e "$get_weather")"
+			parse_input
 			send_push
 			;;
 esac
 
 shopt -u nocasematch
 
-end=$(date +%s.%N)
-runtime=$(echo "$end - $start" | bc -l)
-echo -e "\nRuntime: $runtime"
+#end=$(date +%s.%N)
+#runtime=$(echo "$end - $start" | bc -l)
+#echo -e "\nRuntime: $runtime"
+
+exit 0
 
 # The MIT License (MIT)
 # Copyright (c) 2016 Andy Forceno
