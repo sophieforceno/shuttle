@@ -17,7 +17,7 @@ SHuttle has been tested on Ubuntu Linux 14.04 running Bash 4.3.11(1), and Debian
 On first run, SHuttle will walk you through the setup. This requires a web browser for OAuth.
 You can run setup at any time by executing `./shuttle setup`
 
-Note: Since authentication with Pushbullet is via OAuth, pushes from SHuttle will appear under Following > Shuttle on the Pushbullet website/app.
+Note: Since authentication with Pushbullet is via OAuth, pushes from SHuttle will appear under Following > SHuttle on the Pushbullet website/app.
 
 
 # Usage:
@@ -33,7 +33,7 @@ shuttle <action> <type> <recipient> <data> where:
 * help		        	Shorter usage text
 * usage		    	    List full usage text 		
 * setup 	    	    Oauth and setup
-* Except for "usage" and "setup", all <actions> require additional parameters. 
+* Except for the last three, all <actions> require additional parameters. 
 
 
 Command-line arguments:
@@ -88,7 +88,7 @@ shuttle -p -n chrome "This is a note title" "This is a note body"
 
 Push a URL to your friend at "a_friend@somewhere.com":
 shuttle -p -l a_friend "https://www.github.com"
-Note: If you omit title as in above example, SHuttle will parse the website for a title and push it along with the URL
+Note: If title is omitted, SHuttle will parse the website for a title and push it with the URL
 
 Push an SMS:
 shuttle -p -s "+1 9995551234" "Remember to buy milk"
