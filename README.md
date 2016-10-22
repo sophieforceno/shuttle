@@ -22,7 +22,7 @@ Note: Since authentication with Pushbullet is via OAuth, pushes from SHuttle wil
 
 # Usage:
 ```
-Commands take the following form: electrolyte supplement
+Commands take the following form: 
 shuttle <action> <type> <recipient> <data> where:
 
 <actions>   		    <types>						
