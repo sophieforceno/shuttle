@@ -38,7 +38,6 @@ file="$6"
 
 api_url="https://api.pushbullet.com/v2"
 client_id="bNPNXDYqWvRSEAH6iFlFUU3z8f7dVuoT"
-secret="kMb7x8HdRVdFcWOINJizuiSvXblZrL6V"
 
 # TODO: Testing tput -T issues
 TERM="dumb"
