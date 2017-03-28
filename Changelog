@@ -3,6 +3,7 @@ v0.9.9:
 * As requested, SHuttle now accepts input from stdin! Many things can now be piped to SHuttle!
 	Usage: command | shuttle -p -n device "title"
 * Listing of pushes is still broken... to be fixed next release
+
 v0.9.8:
 * Added custom redirect URI for OAuth setup 
 * Fixed invalid_response 'code' error in setup() (was mistakenly using server-side authentication)
