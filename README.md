@@ -1,6 +1,6 @@
 README.md
 
-**SHuttle v0.9.9**
+**SHuttle v1.0**
 
 # Introduction:
 SHuttle is a Pushbullet client written in Bash shell script. It allows the sending of push notifications from the Linux command-line and from within Bash scripts. SHuttle itself cannot receive pushes, in that regard, it is not a full client. I wrote SHuttle primarily as a means to receive real-time notifications for system administration purposes. In addition to a plethora of command-line options that allow you to access almost all of Pushbullet's free features (see below), SHuttle also allows the sending of push notification bodies from stdin (e.g. you can pipe stuff to SHuttle!). You can find many of the scripts I wrote for sys admin use in the shuttle-utils repository: https://github.com/andyforceno/shuttle-utils
@@ -78,43 +78,45 @@ ls -alh /var/log | awk '{ print $5 "   " $9 }' | grep 'M\|G' | shuttle -p -n pho
 
 SHuttle can do partial matches of device names and chat addresses:
 To push a note to your friend "Jane Doe":
-shuttle -p -n jane "Hi Jane!" "How are you today?"
+* shuttle -p -n jane "Hi Jane!" "How are you today?"
 
 Push a weather forecast to your mobile phone:
-shuttle -p -w "galaxy s4"
+* shuttle -p -w "galaxy s4"
+Note: You must obtain a Weather Underground API key to use this feature
+      See https://www.wunderground.com/weather/api/
 
 Push a note to the Chrome web browser:
-shuttle -p -n chrome "This is a note title" "This is a note body"
+* shuttle -p -n chrome "This is a note title" "This is a note body"
 
 Push a URL to your friend at "a_friend@somewhere.com":
-shuttle -p -l a_friend "https://www.github.com"
-Note: If title is omitted, SHuttle will parse the website for a title and push it with the URL
+* shuttle -p -l a_friend "GitHub" https://www.github.com"
+Note: Omit body. You can also omit title, and SHuttle will parse the site for it
 
 Push an SMS:
-shuttle -p -s "+1 9995551234" "Remember to buy milk"
+* shuttle -p -s "+1 9995551234" "Remember to buy milk"
 Note: Your phone must be connected to the internet and set as "sms_device" in .shuttlerc
 
 List your devices:
-shuttle -l -d
+* shuttle -l -d
 
 Rename a device:
-shuttle -d -u "Phone" "Mi5"
+* shuttle -d -u "Phone" "Mi5"
 
 List chats (contacts):
-shuttle -l -c
+* shuttle -l -c
 
 Add a chat (contact):
-shuttle -c -a a_friend@somewhere.com 
+* shuttle -c -a a_friend@somewhere.com 
 
 Update a chat (contact) address:
-shuttle -c -u a_friend@somewhere.com my_friend@gmail.com
+* shuttle -c -u a_friend@somewhere.com my_friend@gmail.com
 
 Delete a chat recipient:
 Delete accepts partial matches of e-mail, if they are unique:
-shuttle chats del "moogie@"
+* shuttle chats del "moogie@"
 
 List pushes (from last 7 days):
-shuttle -l -p 7d
+* shuttle -l -p 7d
 Accepts hours or days (default is 24h)
 ```
 ![alt text](https://raw.githubusercontent.com/andyforceno/shuttle/master/Shuttle%20screen.jpg "Pushing links with SHuttle")

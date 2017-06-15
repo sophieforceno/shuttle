@@ -1,8 +1,17 @@
 ## Changelog:
+v1.0:
+* Promotion to v1.0 because SHuttle is stable! I've used it for the past year with no issues
+* There's just two outstanding issues, see Shuttle script or GitHub issues for more info
+* SMS pushing is fixed (invalid API call)
+* Fixed bug where pushes were being sent to a dev_iden that was different than user intended (missing -w arg for grep)
+* Listing of pushes is still broken, and after much trial-and-error, I have no solution
+* Contributions welcomed!
+
 v0.9.9:
 * As requested, SHuttle now accepts input from stdin! Many things can now be piped to SHuttle!
-	Usage: command | shuttle -p -n "title"
+	Usage: command | shuttle -p -n device "title"
 * Listing of pushes is still broken... to be fixed next release
+
 v0.9.8:
 * Added custom redirect URI for OAuth setup 
 * Fixed invalid_response 'code' error in setup() (was mistakenly using server-side authentication)
@@ -10,6 +19,7 @@ v0.9.8:
 * Fixed pagination for chats and devices (pagination for pushes list is now broken)
 * Added error-checking in API responses during setup()
 * Fixed empty line printing bug when listing chats and devices
+* Fixed links not pushing correctly (when pushed with a title)
 
 v0.9.7:   
 * Added finishing touches to setup flow

@@ -1,7 +1,7 @@
 #! /bin/bash
 
 #
-# SHuttle v0.9.9-(101716) 
+# SHuttle v1.0-(061517) 
 # A Pushbullet CLI for the Bash shell
 # by Andy Forceno <andy@aurorabox.tech>
 #
@@ -14,10 +14,8 @@
 # See README.md for installation and setup instructions
 
 ### Known issues:
-# List pushes is broken
-# Bash interprets money amounts in USD as positional parameters ("$20" is pushed as "0")
 # Empty cells of push list get filled in with next available cell. Cause is unknown.
-# Unknown if SMS pushing still works (untested recently)
+# Bash interprets money amounts in USD as positional parameters ("$20" is pushed as "0")
 
 shopt -s extglob
 shopt -s nocasematch
@@ -26,9 +24,9 @@ shopt -s nocasematch
 # start=$(date +%s.%N)
 
 # Version
-ver="v0.9.9"
+ver="v1.0"
 IFS=$'\n'
-args=("$@")
+
 action="$1"
 type="$2"
 recip="$3"
@@ -38,10 +36,8 @@ file="$6"
 
 api_url="https://api.pushbullet.com/v2"
 client_id="bNPNXDYqWvRSEAH6iFlFUU3z8f7dVuoT"
-secret="kMb7x8HdRVdFcWOINJizuiSvXblZrL6V"
 
-# TODO: Testing tput -T issues
-TERM="dumb"
+# Terminal width for printing pushes
 term_width=$(tput cols)
 
 ## Parse stdin
@@ -110,8 +106,8 @@ get_device_list () {
 	done
 
 	api_request=$devs
-	dev_names=$(echo $api_request | tr '{' '\n' | grep active\"\:true | tr ',' '\n' | grep nickname | cut -d'"' -f4)
-	dev_idens=$(echo $api_request | tr '{' '\n' | grep active\"\:true | tr ',' '\n' | grep iden | cut -d'"' -f4)
+	dev_names=$(echo $api_request | tr '{' '\n' | grep active\"\:true | tr ',' '\n' | grep -w nickname | cut -d'"' -f4)
+	dev_idens=$(echo $api_request | tr '{' '\n' | grep active\"\:true | tr ',' '\n' | grep -w iden | cut -d'"' -f4)
 # For auto-completion of device names
 # Gets full device name from partial input
 	recip_device=$(echo -e "$dev_names" | grep -iF "$recip") 
@@ -127,7 +123,7 @@ get_device_list () {
 	dev_id=$(echo "$dev_idens" | sed -n $line_num'p' 2> /dev/null)   
   
 # If $recip matches more than one <device> name, warn user
-	if [[ "$action" = +(-p|push) ]] && ( [[ $(echo "$line_num" | wc -l) > 1 ]] || [[ $(echo "$recip_device" | wc -l) > 1 ]] ); then
+	if [[ "$action" = +(-p|push) ]] && ( [[ $(echo "$line_num" | wc -l) -gt 1 ]] || [[ $(echo "$recip_device" | wc -l) -gt 1 ]] ); then
 		echo -e "\nMore than one <device> found:"
 		echo -e "$recip_device"
 		echo -e "\nPlease specify a unique partial or full match"
@@ -155,7 +151,7 @@ get_chats_list () {
 	chat_emails=$(echo $api_request | tr ',' '\n' | grep -w -E '"active\"\:true"|email_normalized' | cut -d '"' -f4)
 	chat_names=$(echo $api_request | tr ',' '\n '| grep -w "name" | sed -e 's/["}]//g' | cut -f2 -d':')
 	line_num=$(echo "$chat_emails" | grep -in "$recip" | cut -d: -f1)
-	chat_idens=$(echo $api_request | tr '{' '\n' | grep active\"\:true | tr ',' '\n' | grep iden | cut -d'"' -f4)
+	chat_idens=$(echo $api_request | tr '{' '\n' | grep active\"\:true | tr ',' '\n' | grep -w iden | cut -d'"' -f4)
 # Get chat_id from partial input of email address
 	chat_id=$(echo "$chat_idens" | sed -n $line_num'p' 2> /dev/null)  
 	# For auto-completion of recipient names
@@ -170,7 +166,7 @@ get_chats_list () {
 				exit 1
 			fi
 		# Check that <chat> e-mail address is a unique target
-			if [[ $(echo "$recip_email" | wc -l) > 1 ]]; then
+			if [[ $(echo "$recip_email" | wc -l) -gt 1 ]]; then
 					echo -e "\nMore than one chat found:"
 					paste <(printf "%s\n" "$recip_email")
 					echo -e "\nPlease specify a unique partial or full match"
@@ -201,13 +197,12 @@ get_push_list () {
 # Convert input time in days to time in hours
 	if [[ $interval =~ d ]];
 		then
-			hour=$(($hour * 24))
+			hour=$((hour * 24))
 	fi
-	uts_hour=$(($hour * 60 * 60))
+	uts_hour=$((hour * 60 * 60))
 	uts_now=$(date +%s)
-	mod_time=$(($uts_now - $uts_hour))
-# TODO: When there are missing cells in the output, they get filled in. 
-# Causing everything to become misaligned. I blame paste.
+	mod_time=$((uts_now - uts_hour))
+
 	api_request=$(curl -s -H "Access-Token: $access_token" $api_url/pushes?modified_after=$mod_time -X GET)
 	# Check for error messages in API response
 	check_error
@@ -229,12 +224,17 @@ get_push_list () {
 	sender_email=$(echo $api_request | tr ',' '\n '| grep -w "sender_email" | cut -f2 -d':' | tr -d '"')
 	pushtypes=$(echo $api_request | tr ',' '\n '| grep -w "type" | cut -f2 -d':' | tr -d '"')
 # Output formatting variables for pushes list
-	col_width=$(($term_width/5))
+	col_width=$((term_width/5))
 # Assemble the push data into rows and columns
 # Crop the output to fit the terminal width
-	list_header=$(paste <(printf "%s\n" "Title:") <(printf "%s\n" "Body:") <(printf "%s\n" "Sender Name:") <(printf "%s\n" "Sender Email:") <(printf "%s\n" "Type:") | pr -t -e$col_width)
+list_header=$(paste <(printf "%s\n" "Title:") <(printf "%s\n" "Body:") <(printf "%s\n" "Sender Name:") <(printf "%s\n" "Sender Email:") <(printf "%s\n" "Type:") | pr -t -e$col_width)
 	list_seperator=$(printf %.s- {1..300} | cut -c1-$term_width)
 	list_body=$(paste <(printf "%s\n" "$push_title" | awk -v width="$(($col_width-4))" 'length > width{$0=substr($0,0,width)"..."}1') <(printf "%s\n" "$push_body" | awk -v width="$(($col_width-4))" 'length > width{$0=substr($0,0,width)"..."}1') <(printf "%s\n" "$sender_name") <(printf "%s\n" "$sender_email") <(printf "%s\n" "$pushtypes") | pr -t -e$col_width)
+
+######################################
+#for value in "${values[@]}"; do 
+#    printf "%-8s\n" "${value}"
+#done | column
 }
  
 ### Initial request to upload a file
@@ -252,43 +252,6 @@ upload_file () {
 # Step 2:
 	curl -s -H "Access-Token: $access_token" $get_upload_url -F file="@$file" -X POST
 }
-
-### End-to-end Encryption
-# See: https://docs.pushbullet.com/#end-to-end-encryption
-# A work in progress, not entirely sure it's possible
-# Besides, it's entirely insecure, susceptible to snooping, among other things
-#e2e_encrypt () {
-## Ask user for password
-#if [[ -z "$e2e_pass" ]]; then
-#	echo -e "To use end-to-end encryption, you must set a password.\n"
-#	echo "The same password must be set on all of your Pushbullet devices, otherwise encryption will fail."
-#	echo -e "You can set the encryption password on each device in your Pushbullet account settings on the website or app\n"
-#	
-#	while true; do
-#		read -s -t 60 -p "Enter your encryption password: " e2e_pass_1
-#		echo -e "\n"
-#		read -s -t 60 -p "Confirm your encryption password: " e2e_pass_2
-#		echo -e "\n"
-#	
-#		if [[ "$e2e_pass_1" != "$e2e_pass_2" ]]; then
-#		        echo -e "Shuttle: Error: Passwords do not match! Please try again.\n" 
-#				continue
-#		elif [[ -z "$e2e_pass_1" || -z "$e2e_pass_2" ]]; thenTODO
-#		        echo -e "Shuttle: Error: Password can't be blank! Please try again.\n" 
-#				continue
-#		else
-#			sed -i "s/e2e_pass=.*/e2e_pass=$e2e_pass/g" ~/.shuttlerc
-#	# TODO: How is password encrypted, how is it transmitted?
-#			echo "Your end-to-end encryption password is set!" 
-#			break
-#		fi
-#	done
-# TODO: Should trigger only on SMS
-# elif [[ "$type" = +(sms|-s) ]]; then
-#else
-#	echo -n "$e2e_pass" | openssl dgst -sha256 -hmac -salt | awk '{ print $2 }' | base64
-#fi
-#}
 
 # Main function that sends all pushes (except SMS)
 # See: https://docs.pushbullet.com/#pushes
@@ -352,45 +315,49 @@ For "list" [action]:
 
 -----
 To push notes or files:   shuttle push note [recipient] [title] [body] ([file name])
-To push links: 	          shuttle push link [recipient] [title] [body]
+To push links: 	          shuttle push link [recipient] [title] [body] <url>
 	       Note: If no URL title is given, SHuttle will parse the website for a title
 To push SMS: 		  shuttle push sms <phone number> <SMS>
 
 Note: SHuttle accepts pipes from most commands. 
 Examples:
-ps -eo pid,cmd,ppid,%mem,%cpu --sort=pcpu | tail -10 | shuttle -p -n browser "Top CPU usage by process"
-ls -alh /var/log | awk '{ print $5 "   " $9 }' | grep 'M\|G' | shuttle -p -n phone "Large log files"
+* ps -eo pid,cmd,ppid,%mem,%cpu --sort=pcpu | tail -10 | shuttle -p -n browser "Top CPU usage by process"
+* ls -alh /var/log | awk '{ print $5 "   " $9 }' | grep 'M\|G' | shuttle -p -n phone "Large log files"
 
 Tips & Example usage:
 --------------
 To push a note to <device>:
-	shuttle push note "Galaxy S4" "This is the note title" "This is the note body"
+* shuttle push note "Galaxy S4" "This is the note title" "This is the note body"
+
+To push a link to <device>:
+* shuttle push link "Browser" "Link title"  "<url>" 
+Note: Omit body. You can also omit title, SHuttle will parse the site for it
 
 Use shortcut flags for repetitive tasks or automated pushes:
-	shuttle -p -f "Nexus 7" "System Logs" "For $(date +%m-%d-%y)" "/var/log/syslog"
+* shuttle -p -f "Nexus 7" "System Logs" "For $(date +%m-%d-%y)" "/var/log/syslog"
 
 Push an SMS to <phone number>:
-	shuttle push sms "+1 9995551234" "Remember to get milk"
+* shuttle push sms "+1 9995551234" "Remember to get milk"
 (Your phone must be connected to the internet and set as "sms_device" in .shuttlerc)
 
 Add, delete, or update <chat> email or <device> name:
-	shuttle chats add "Moogie_the_Cat@cats.com"
+* shuttle chats add "Moogie_the_Cat@cats.com"
 Delete accepts partial matches of e-mail, if they are unique:
-	shuttle chats del "moogie"
+* shuttle chats del "moogie"
 
 Update <recipient> email address or <device> name:
-	shuttle chats update "Moogie_the_cat@cats.com" "Moogie@cats.com"
-	shuttle devices -u "Galaxy S4" "Jane's Galaxy S4"
+* shuttle chats update "Moogie_the_cat@cats.com" "Moogie@cats.com"
+* shuttle devices -u "Galaxy S4" "Jane's Galaxy S4"
 
 View recent pushes from the last t intervals (h hours, d days):
-shuttle list pushes 3d
+* shuttle list pushes 3d
 
 Push weather forecast for the next few days to <device>:
-	shuttle -p -w "Tablet"
+* shuttle -p -w "Tablet"
 Note: You will be prompted for your zipcode. Only tested within the U.S.
 
 <device> and <recipient> are case insensitive & can be a unique partial match, too:
-	shuttle push link s4 "https://github.com/andyforceno/shuttle"
+* shuttle push link s4 "https://github.com/andyforceno/shuttle"
 
 For more examples and extension scripts, visit SHuttle on GitHub:
 https://github.com/andyforceno/shuttle
@@ -409,6 +376,11 @@ cat > ~/.shuttlerc << EOL
 # Or from your Pushbullet account settings:
 # https://www.pushbullet.com/#settings/account
 access_token=""
+
+# Your Weather Underground API key
+# Required for weather pushing functionality
+# Obtain it by registering here: https://www.wunderground.com/weather/api/
+wu_api_key=""
 
 # Set your zipcode here for weather functionality 
 zipcode=""
@@ -493,12 +465,12 @@ case "$1" in
 	list | -l)
 		# See types in case $2
 			if [[ -z "$2" ]]; then
-				echo "No list <type> defined. Try channels, chats, devices, or user'."
+				echo "No list <type> defined. Try channels, chats, devices, or user."
 			fi
 			;;	
 	push | -p)
 		# If title and body are empty, warn and exit
-		if [[ -z "$title" && -z "$body" && "$type" != +(weather|-w) ]]; then
+		if [[ -z "$title" && -z "$body" && "$type" != +(weather|-w|link|-l) ]]; then
 			echo "SHuttle: Error: No data. Check the title and body, and try again."
 			exit 1
 		fi
@@ -533,7 +505,7 @@ case "$1" in
 		*)
 			if [[ "$setup_flag" = "1" ]] && [[ "$1" != "setup" ]]; then
 # INFO: If you change the usage text, adjust head argument value accordingly
-				usage | head -n 43
+				usage | head -n 40
 				echo "-----"
 				echo -e "Execute "\"shuttle help"\" for the full usage text & example usage\n"
 			fi
@@ -542,39 +514,39 @@ esac
 
 ### <types> ###
 case "$2" in
-		add | -a)
+	add | -a)
 		# Check if <chat> is a duplicate
-			if [[ -n "$recip_email" ]]; then
-				echo -e "\nA chat with this email address already exists\n"
-				exit 1
-			fi
-			api_request=$(curl -s -H "Access-Token: $access_token" -H "Content-Type: application/json" $api_url/chats -X POST --data-binary '{"email":"'"$3"'"}')
-			check_error
-			echo -e "\nChat added successfully\n"
-			;;
+		if [[ -n "$recip_email" ]]; then
+			echo -e "\nSHuttle: Error: A chat with this email address already exists\n"
+			exit 1
+		fi
+		api_request=$(curl -s -H "Access-Token: $access_token" -H "Content-Type: application/json" $api_url/chats -X POST --data-binary '{"email":"'"$3"'"}')
+		check_error
+		echo -e "\nChat added successfully\n"
+		;;
 	channel | channels)
-			get_channels=$(curl -s -H "Access-Token: $access_token" $api_url/subscriptions -X GET)
-			chan_names=$(echo $get_channels | tr ',' '\n '| grep -w "name" | cut -f2 -d':' | tr -d '"')
-			chan_tags=$(echo $get_channels | tr ',' '\n '| grep -w "tag" | cut -f2 -d':' | tr -d '"')
-			chan_desc=$(echo $get_channels | tr ',' '\n '| grep -w "description" | cut -f2 -d':' | tr -d '"' | tr -d '}')
-			col_width=$(($term_width/3))
+		get_channels=$(curl -s -H "Access-Token: $access_token" $api_url/subscriptions -X GET)
+		chan_names=$(echo $get_channels | tr ',' '\n '| grep -w "name" | cut -f2 -d':' | tr -d '"')
+		chan_tags=$(echo $get_channels | tr ',' '\n '| grep -w "tag" | cut -f2 -d':' | tr -d '"')
+		chan_desc=$(echo $get_channels | tr ',' '\n '| grep -w "description" | cut -f2 -d':' | tr -d '"' | tr -d '}')
+		col_width=$((term_width/3))
 
-			printf "%s\n" "Channel: 	 			Description: 		  	Tag:"
-			printf "%s\n" "---------------------------------------------------------------------------------------"
-			paste <(printf "%s\n" "$chan_names") <(printf "%s\n" "$chan_desc") <(printf "%s\n" "$chan_tags" "") | pr -t -e24
-			;;
+		printf "%s\n" "Channel: 	 			Description: 		  	Tag:"
+		printf "%s\n" "---------------------------------------------------------------------------------------"
+		paste <(printf "%s\n" "$chan_names") <(printf "%s\n" "$chan_desc") <(printf "%s\n" "$chan_tags" "") | pr -t -e24
+		;;
 	chats | -c)
-			get_chats_list
-			echo -e "\nChats:"
-			echo "--------"
-			echo "$list_body" | sort -f
-			;;
+		get_chats_list
+		echo -e "\nChats:"
+		echo "--------"
+		echo "$list_body" | sort -f
+		;;
 	devices | dev | -d)
-			get_device_list
-			echo -e "\nDevices:"
-			echo "--------"
-			echo -e "$dev_names\nAll" | sort -f
-			;;
+		get_device_list
+		echo -e "\nDevices:"
+		echo "--------"
+		echo -e "$dev_names\nAll" | sort -f
+		;;
 # For pro (paid) accounts only
 # Untested since introduction of Pro tier accounts, ymmv
 #	clip)
@@ -601,7 +573,7 @@ case "$2" in
 	file | -f)		
 		# Check that <file> exists
 			if [[ ! -e "$file" ]]; then
-					echo -e "\nFile not found\n"
+					echo -e "\nSHuttle: Error: File not found\n"
 					exit 1
 			fi
 			type="file"
@@ -613,26 +585,25 @@ case "$2" in
 		else
 			push_param="\"file_type\":\"$content_type\",\"file_url\":\"$file_url\",\"file_name\":\"$file\","
 		fi
-		echo_param="\n File: $file"
 	 	send_push															
 			;;
 	link | -l)
 			type="link"
 		# If no url title is given, then crudely attempt to extract title from the website
-		# This doesn't always work properly, depending on the site. 
+		# INFO: This doesn't always work properly, depending on the site. 
 			if [[ $4 == *"http"* || $4 == *"www"* ]]; then
 				link="$4"
 				title=$(curl -s "$link" | grep -iPo '(?<=<title>)(.*)(?=</title>)')
 			else
 				link="$6"		
 			fi
-			echo_param="\n URL: "$link""
 		# Modify JSON formatting depending on target 
 			if [[ "$recip" = [Aa]ll ]]; then
 				push_param=",\"url\":\"$link\""										
 			else
 				push_param="\"url\":\"$link\","
 			fi
+			parse_input
 			send_push
 			;;
 # Notes are the "standard" push type, so we don't need much here
@@ -677,7 +648,7 @@ case "$2" in
 			get_user_info
 			get_device_list
 		# Call to push SMS
-			api_request=$(curl -s $access_token: -X POST $api_url/ephemerals --header "Content-Type: application/json" --data-binary '{"type": "push", "push": {"type": "messaging_extension_reply","package_name": "com.pushbullet.android","source_user_iden": "'"$user_iden"'", "target_device_iden": "'"$dev_id"'", "conversation_iden": "'"$3"'","message": "'"$4"'" } }')
+			api_request=$(curl -s -H "Access-Token: $access_token" -X POST $api_url/ephemerals --header "Content-Type: application/json" --data-binary '{"type": "push", "push": {"type": "messaging_extension_reply","package_name": "com.pushbullet.android","source_user_iden": "'"$user_iden"'", "target_device_iden": "'"$dev_id"'", "conversation_iden": "'"$3"'","message": "'"$4"'" } }')
 			check_error				
 			echo -e "\nSMS sent successfully\n"	
 			;;
@@ -714,14 +685,21 @@ case "$2" in
 				read -p "Enter your zipcode: " zipcode 
 				sed -i "s/zipcode=.*/zipcode=$zipcode/g" ~/.shuttlerc
 			fi
+			if [[ -z "$wu_api_key" ]]; then 
+				echo -e "SHuttle: Error: No Weather Underground API key!\n"
+				echo "You must register for a Weather Underground API key to use this feature."
+				echo "Obtain an API key here: https://www.wunderground.com/weather/api/"
+				echo "And insert the value for wu_api_key in ~/.shuttlerc"
+				exit 1
+			fi
 	# Check zipcode length
 			zip_num=${#zipcode}				
-			if [[ $zip_num < 5 ]]; then 
+			if [[ $zip_num -lt 5 ]]; then 
 				echo -e "\n Error: Insufficient digits in zipcode \n" 
-				exit 0
+				exit 1
 			fi
 			get_date=$(date | awk '{print $1, $2, $3}')	
-			get_weather=$(curl -s http://api.wunderground.com/api/7f469fcb4cddb6fa/forecast/geolookup/conditions/q/$zipcode.json | grep -w 'title\|fcttext' | cut -d ':' -f2 | sed -n '1!p' | sed -e 's/\"//g' -e 's/,//g' -e '1~2s/$/:/g')
+			get_weather=$(curl -s http://api.wunderground.com/api/$wu_api_key/forecast/geolookup/conditions/q/$zipcode.json | grep -w 'title\|fcttext' | cut -d ':' -f2 | sed -n '1!p' | sed -e 's/\"//g' -e 's/,//g' -e '1~2s/$/:/g')
 			type="note"
 			push_param=""
 			title="$(echo -n "Forecast: $get_date")"
