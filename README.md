@@ -12,7 +12,7 @@ SHuttle has been tested on Ubuntu Linux 14.04 running Bash 4.3.11(1), and Debian
     git clone https://github.com/andyforceno/shuttle/
     cd to shuttle/
     chmod +x shuttle
-	curl -V 		# To check if you have curl installed
+	curl -V 	# To check if you have curl installed
     ./shuttle
  
 On first run, SHuttle will walk you through the setup. This requires a web browser for OAuth.
