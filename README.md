@@ -56,7 +56,7 @@ weather | -w	        	Send weather forecast to <device> or <chats>
 
 For "chats" or "devices" <action>:
 add | -a		        Add <chat> email address or <device> name
-delete | del	        Delete <chat> email address or <device> name
+delete | del	        	Delete <chat> email address or <device> name
 update | -u		        Update <chat> email address or <device> name
 
 For "list" <action>:
