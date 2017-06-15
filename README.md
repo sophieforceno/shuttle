@@ -51,8 +51,8 @@ For "push" <action>
 file | -f		        Push a file to <device> or <chats>
 link | -l		        Push a link to <device> or <chats>
 note | -n		        Push a note to <device> or <chats>
-sms  | -s	            Send an SMS to <phone number>
-weather | -w	        Send weather forecast to <device> or <chats>
+sms  | -s	            	Send an SMS to <phone number>
+weather | -w	        		Send weather forecast to <device> or <chats>
 
 For "chats" or "devices" <action>:
 add | -a		        Add <chat> email address or <device> name
