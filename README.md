@@ -18,7 +18,7 @@ SHuttle has been tested on Ubuntu Linux 14.04 running Bash 4.3.11(1), and Debian
 On first run, SHuttle will walk you through the setup. This requires a web browser for OAuth.
 You can run setup at any time by executing `./shuttle setup`
 
-Note: Since authentication with Pushbullet is via OAuth, pushes from SHuttle will appear under Following > SHuttle on the Pushbullet website/app.
+Note: pushes sent from SHuttle to all devices will appear under Following > SHuttle on the Pushbullet website/app.
 
 
 # Usage:
