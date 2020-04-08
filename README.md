@@ -3,13 +3,13 @@ README.md
 **SHuttle v1.0**
 
 # Introduction:
-SHuttle is a Pushbullet client written in Bash shell script. It allows the sending of push notifications from the Linux command-line and from within Bash scripts. SHuttle itself cannot receive pushes, in that regard, it is not a full client. I wrote SHuttle primarily as a means to receive real-time notifications for system administration purposes. In addition to a plethora of command-line options that allow you to access almost all of Pushbullet's free features (see below), SHuttle also allows the sending of push notification bodies from stdin (e.g. you can pipe stuff to SHuttle!). You can find many of the scripts I wrote for sys admin use in the shuttle-utils repository: https://github.com/andyforceno/shuttle-utils
+SHuttle is a Pushbullet client written in Bash shell script. It allows the sending of push notifications from the Linux command-line and from within Bash scripts. SHuttle itself cannot receive pushes, in that regard, it is not a full client. I wrote SHuttle primarily as a means to receive real-time notifications for system administration purposes. In addition to a plethora of command-line options that allow you to access almost all of Pushbullet's free features (see below), SHuttle also allows the sending of push notification bodies from stdin (e.g. you can pipe stuff to SHuttle!). You can find many of the scripts I wrote for sys admin use in the shuttle-utils repository: https://github.com/SyntrophicConsortium/shuttle-utils
 
 SHuttle has been tested on Ubuntu Linux 14.04 running Bash 4.3.11(1), and Debian 8 running Bash 4.3.30(1). SHuttle contains numerous Bash-isms making it unsuitable for other shells. SHuttle has few dependencies, most of which are included by default in most distros. Curl is likely the only package you will have to install.
 
 
 # Installation:
-    git clone https://github.com/andyforceno/shuttle/
+    git clone https://github.com/SyntrophicConsortium/shuttle/
     cd to shuttle/
     chmod +x shuttle
 	curl -V 	# To check if you have curl installed
@@ -120,7 +120,7 @@ List pushes (from last 7 days):
 * shuttle -l -p 7d
 Accepts hours or days (default is 24h)
 ```
-![alt text](https://raw.githubusercontent.com/andyforceno/shuttle/master/Shuttle%20screen.jpg "Pushing links with SHuttle")
+![alt text](https://raw.githubusercontent.com/SyntrophicConsortium/shuttle/master/Shuttle%20screen.jpg "Pushing links with SHuttle")
 
 # License:
 
@@ -128,7 +128,7 @@ This program is distributed under the MIT license:
 
 The MIT License (MIT)
 
-Copyright (c) 2016 Andy Forceno <aforceno@pm.me>
+Copyright (c) 2016 SyntrophicConsortium
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
