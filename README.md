@@ -120,7 +120,7 @@ List pushes (from last 7 days):
 * shuttle -l -p 7d
 Accepts hours or days (default is 24h)
 ```
-![alt text](https://raw.githubusercontent.com/SyntrophicConsortium/shuttle/master/Shuttle%20screen.jpg "Pushing links with SHuttle")
+
 
 # License:
 
