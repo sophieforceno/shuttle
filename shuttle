@@ -3,7 +3,7 @@
 #
 # SHuttle v1.0-(061517) 
 # A Pushbullet CLI for the Bash shell
-# by Andy Forceno
+# by Sophie Forceno
 #
 
 # SHuttle is distributed under the MIT License
@@ -357,11 +357,11 @@ Push weather forecast for the next few days to <device>:
 Note: You will be prompted for your zipcode. Only tested within the U.S.
 
 <device> and <recipient> are case insensitive & can be a unique partial match, too:
-* shuttle push link s4 "https://github.com/andyforceno/shuttle"
+* shuttle push link s4 "https://github.com/sophieforceno/shuttle"
 
 For more examples and extension scripts, visit SHuttle on GitHub:
-https://github.com/andyforceno/shuttle
-https://github.com/andyforceno/shuttle-utils
+https://github.com/sophieforceno/shuttle
+https://github.com/sophieforceno/shuttle-utils
 EOF
 }
 
@@ -400,7 +400,7 @@ time=24h
 # Do not modify anything beyond this point
 setup_flag=1
 EOL
-	oauth_url="https://www.pushbullet.com/authorize?client_id=$client_id&redirect_uri=https%3A%2F%2Fandyforceno.github.io%2Fshuttle&response_type=token"	
+	oauth_url="https://www.pushbullet.com/authorize?client_id=$client_id&redirect_uri=https%3A%2F%2Fsophieforceno.github.io%2Fshuttle&response_type=token"	
 	
 	echo -e "\nFirst, you must authorize SHuttle with PushBullet" 
 	echo "Press any key to open the authorization URL in your browser"
@@ -717,7 +717,7 @@ shopt -u nocasematch
 exit 0
 
 # The MIT License (MIT)
-# Copyright (c) 2020 Andy Forceno
+# Copyright (c) 2021 Sophie Forceno
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), 
 # to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, 
