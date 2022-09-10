@@ -1,6 +1,6 @@
 README.md
 
-**SHuttle v1.0**
+**SHuttle v1.0.5**
 
 # Introduction:
 SHuttle is a Pushbullet client written in Bash shell script. It allows the sending of push notifications from the Linux command-line and from within Bash scripts. SHuttle itself cannot receive pushes, in that regard, it is not a full client. I wrote SHuttle primarily as a means to receive real-time notifications for system administration purposes. In addition to a plethora of command-line options that allow you to access almost all of Pushbullet's free features (see below), SHuttle also allows the sending of push notification bodies from stdin (e.g. you can pipe stuff to SHuttle!). You can find many of the scripts I wrote for sys admin use in the shuttle-utils repository: https://github.com/sophieforceno/shuttle-utils
@@ -53,6 +53,7 @@ link | -l		        Push a link to <device> or <chats>
 note | -n		        Push a note to <device> or <chats>
 sms  | -s	            	Send an SMS to <phone number>
 weather | -w	        	Send weather forecast to <device> or <chats>
+			** Weather Underground API is depracated, this no longer functions **
 
 For "chats" or "devices" <action>:
 add | -a		        Add <chat> email address or <device> name
