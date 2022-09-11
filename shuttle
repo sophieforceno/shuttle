@@ -1,10 +1,8 @@
 #! /bin/bash
 
-#
-# SHuttle v1.0.5-(091022) 
+# SHuttle v1.1-(091122) 
 # A Pushbullet CLI for the Bash shell
 # by Sophie Forceno
-#
 
 # SHuttle is distributed under the MIT License
 # See full license text at the bottom of this file
@@ -24,7 +22,7 @@ shopt -s nocasematch
 # start=$(date +%s.%N)
 
 # Version
-ver="v1.0.5"
+ver="v1.0"
 IFS=$'\n'
 
 action="$1"
@@ -267,18 +265,18 @@ send_push () {
 		all | All)
 			api_request=$(curl -s -H "Access-Token: $access_token" -H "Content-Type: application/json" $api_url/pushes --data-binary '{"type":"'"$type"'","title":"'"$title"'","body":"'"$body"'"'"$push_param"'}' -X POST)
 			check_error
-		# Special output for weather forecast pushes
+		# Special output for weather conditions pushes
 			if [[ $weather_flag = 1 ]]; then
-				echo -e "Weather forecast for $get_date pushed to all devices\n"
+				echo -e "Weather conditions for $town pushed to all devices\n"
 			else
 				echo -e "Push sent successfully to all devices\n"
 			fi
 			;;
-		!(all) | !(All))									
+		!(all) | !(All))																										
 			api_request=$(curl -s -H "Access-Token: $access_token" -H "Content-Type: application/json" $api_url/pushes --data-binary '{"type":"'"$type"'","title":"'"$title"'","body":"'"$body"'",'"$push_param"''"$recip_param"'}' -X POST)
 			check_error
 			if [[ $weather_flag = 1 ]]; then
-				echo -e "Weather forecast for $get_date pushed to $recip\n"
+				echo -e "Weather conditions for $town pushed to $recip\n"
 			else
 				echo -e "Push sent successfully to $recip\n"	
 			fi
@@ -306,8 +304,7 @@ For "push" [action]:
 	link | -l		Push a link to <device> or <chat>
 	note | -n		Push a note to <device> or <chat>
 	sms  | -s		Send a text message to <phone number>
-	weather | -w		Send weather forecast to <device> or <chat>
-				  ** Weather Underground API is deprecated, this no longer functions **
+	weather | -w		Send local weather conditions to <device> or <chat>
 
 For "chats" or "devices" [action]:
 	add | -a		Add <chat> email address or <device> name
@@ -335,14 +332,14 @@ Examples:
 Tips & Example usage:
 --------------
 To push a note to <device>:
-* shuttle push note "Galaxy S4" "This is the note title" "This is the note body"
+* shuttle push note "Pixel 4a" "This is the note title" "This is the note body"
 
 To push a link to <device>:
 * shuttle push link "Browser" "Link title"  "<url>" 
 Note: Omit body. You can also omit title, SHuttle will parse the site for it
 
 Use shortcut flags for repetitive tasks or automated pushes:
-* shuttle -p -f "Nexus 7" "System Logs" "For $(date +%m-%d-%y)" "/var/log/syslog"
+* shuttle -p -f "Tablet" "System Logs" "For $(date +%m-%d-%y)" "/var/log/syslog"
 
 Push a text message to <phone number>:
 * shuttle push sms "+1 9995551234" "Remember to get milk"
@@ -360,7 +357,7 @@ Update <recipient> email address or <device> name:
 View recent pushes from the last t intervals (h hours, d days):
 * shuttle list pushes 3d
 
-Push weather forecast for the next few days to <device>:
+Push weather condtions to <device>:
 * shuttle -p -w "Tablet"
 Note: You will be prompted for your zipcode. Only tested within the U.S.
 
@@ -415,7 +412,7 @@ EOL
 	echo "Press any key to open the authorization URL in your browser"
 	echo "If your browser does not open, copy and paste the URL manually:"
 	echo $oauth_url
-echo -e "\nClick the Approve button in your browser to grant SHuttle access to your Pushbullet data."
+echo -e "\nClick the Approve button in your browser to grant SHuttle access to your Pushbullet data."	
 read -p ""
 # This may not work on some distros
 	xdg-open "https://www.pushbullet.com/authorize?client_id=$client_id&redirect_uri=$oauth_url" > /dev/null
@@ -594,7 +591,7 @@ case "$2" in
 		else
 			push_param="\"file_type\":\"$content_type\",\"file_url\":\"$file_url\",\"file_name\":\"$file\","
 		fi
-	 	send_push										
+	 	send_push															
 			;;
 	link | -l)
 			type="link"
@@ -608,7 +605,7 @@ case "$2" in
 			fi
 		# Modify JSON formatting depending on target 
 			if [[ "$recip" = [Aa]ll ]]; then
-				push_param=",\"url\":\"$link\""						
+				push_param=",\"url\":\"$link\""										
 			else
 				push_param="\"url\":\"$link\","
 			fi
@@ -709,9 +706,8 @@ case "$2" in
 				sed -i "s/zipcode=.*/zipcode=$zipcode/g" ~/.shuttlerc
 			fi
 			if [[ -z "$wu_api_key" ]]; then 
-				echo -e "SHuttle: Error: No Weather Underground API key!\n"
-				echo "You must register for a Weather Underground API key to use this feature."
-				echo "Obtain an API key here: https://www.wunderground.com/weather/api/"
+				echo -e "SHuttle: Error: No WeatherAPI API key!\n"
+				echo "You need an API key to use this feature. Sign up for free here: https://www.wunderground.com/weather/api/"
 				echo "And insert the value for wu_api_key in ~/.shuttlerc"
 				exit 1
 			fi
@@ -720,12 +716,19 @@ case "$2" in
 			if [[ $zip_num -lt 5 ]]; then 
 				echo -e "\n Error: Insufficient digits in zipcode \n" 
 				exit 1
-			fi
-			get_date=$(date | awk '{print $1, $2, $3}')	
-			get_weather=$(curl -s http://api.wunderground.com/api/$wu_api_key/forecast/geolookup/conditions/q/$zipcode.json | grep -w 'title\|fcttext' | cut -d ':' -f2 | sed -n '1!p' | sed -e 's/\"//g' -e 's/,//g' -e '1~2s/$/:/g')
+			fi			
+			get_date=$(date '+%H:%M:%S on %b %d %Y')
+			apires=$(curl -s "https://api.weatherapi.com/v1/current.json?key=$wu_api_key&q=$zipcode&aqi=no")		
+			town=$(echo "$apires" | tr ',' '\n ' | grep -w name | cut -f3 -d':' | tr -d '"')
+			temp_f=$(echo "$apires" | tr ',' '\n ' | grep -w temp_f | cut -f2 -d':' | tr -d '"')
+			condition=$(echo "$apires" | tr ',' '\n ' | grep -w text | cut -f3 -d':' | tr -d '"')
+			wind_mph=$(echo "$apires" | tr ',' '\n ' | grep -w wind_mph | cut -f2 -d':')
+			humidity=$(echo "$apires" | tr ',' '\n ' | grep -w humidity | cut -f2 -d':')
+			uvindex=$(echo "$apires" | tr ',' '\n ' | grep -w uv | cut -f2 -d':')
+			get_weather=$(echo -n "$temp_f F - $condition\n$humidity% Humidity\n$wind_mph mph Wind\n$uvindex UV Index\nas of $get_date")
 			type="note"
 			push_param=""
-			title="$(echo -n "Forecast: $get_date")"
+			title="$(echo -n "Weather conditions for $town")"
 			parse_input
 			send_push
 			;;
