@@ -1,6 +1,6 @@
 README.md
 
-**SHuttle v1.0.5**
+**SHuttle v1.1**
 
 # Introduction:
 SHuttle is a Pushbullet client written in Bash shell script. It allows the sending of push notifications from the Linux command-line and from within Bash scripts. SHuttle itself cannot receive pushes, in that regard, it is not a full client. I wrote SHuttle primarily as a means to receive real-time notifications for system administration purposes. In addition to a plethora of command-line options that allow you to access almost all of Pushbullet's free features (see below), SHuttle also allows the sending of push notification bodies from stdin (e.g. you can pipe stuff to SHuttle!). You can find many of the scripts I wrote for sys admin use in the shuttle-utils repository: https://github.com/sophieforceno/shuttle-utils
@@ -52,8 +52,8 @@ file | -f		        Push a file to <device> or <chats>
 link | -l		        Push a link to <device> or <chats>
 note | -n		        Push a note to <device> or <chats>
 sms  | -s	            	Send an SMS to <phone number>
-weather | -w	        	Send weather forecast to <device> or <chats>
-			** Weather Underground API is deprecated, this no longer functions **
+weather | -w	        	Send local weather conditions to <device> or <chats>
+
 
 For "chats" or "devices" <action>:
 add | -a		        Add <chat> email address or <device> name
@@ -82,11 +82,9 @@ SHuttle can do partial matches of device names and chat addresses:
 To push a note to your friend "Jane Doe":
 * shuttle -p -n jane "Hi Jane!" "How are you today?"
 
-Push a weather forecast to your mobile phone:
+Push loca weather conditions to your mobile phone:
 * shuttle -p -w "galaxy s4"
-Note: You must obtain a Weather Underground API key to use this feature
-      See https://www.wunderground.com/weather/api/
-
+    
 Push a note to the Chrome web browser:
 * shuttle -p -n chrome "This is a note title" "This is a note body"
 
