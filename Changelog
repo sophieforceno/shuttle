@@ -1,4 +1,7 @@
 ## Changelog:
+v1.1: 
+* Changed weather provider to weatherapi.com
+
 v1.0:
 * Promotion to v1.0 because SHuttle is stable! I've used it for the past year with no issues
 * There's just two outstanding issues, see Shuttle script or GitHub issues for more info
